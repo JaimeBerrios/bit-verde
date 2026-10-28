@@ -1,0 +1,7 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.34,<1
+SQLAlchemy>=2.0.38,<2.1
+PyMySQL[rsa]>=1.1,<2
+pydantic-settings>=2.7,<3
+Jinja2>=3.1.6,<4
+qrcode>=8.0,<9

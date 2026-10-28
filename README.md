@@ -1,1 +1,79 @@
 # BitVerde
+
+Quiosco RAEE con FastAPI, SQLAlchemy 2, MySQL 8 y SQLite. HTML semántico, Tailwind vía CDN, CSS adaptable y JavaScript sin herramientas de compilación. QR generado en el servidor, sin enviar datos a terceros.
+
+## Desarrollo local (Python 3.11+)
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env
+# Edita .env y define STAFF_PASSWORD antes de usar /staff.
+uvicorn app.main:app --reload
+```
+
+Abre `http://localhost:8000`. SQLite crea `bitverde.db` al iniciar. Si pruebas el QR con un teléfono, configura `PUBLIC_URL` con la dirección accesible desde el teléfono y arranca con `--host 0.0.0.0`. El valor predeterminado del QR es el dominio de producción solicitado.
+
+| Ruta | Uso |
+| --- | --- |
+| `/` | Trivia móvil de tres preguntas |
+| `/registro` | Registro y comprobante imprimible |
+| `/dashboard` | Métricas cada 5 segundos y QR |
+| `/staff` | Consulta y canje, protegido por HTTP Basic |
+| `/docs` | API OpenAPI interactiva |
+| `/health` | Comprobación de aplicación y base de datos |
+
+## Funcionamiento
+
+La ronda selecciona una compuerta AND/OR/NOT/XOR, una conversión binario–hexadecimal y una pregunta ambiental. Caduca a los 20 minutos y solo acepta un envío válido. Se aprueba con **3/3**; el servidor genera un token aleatorio de 64 bits con formato `#0x0123456789ABCDEF-BIT`, único en la base de datos. El formato es más largo que el ejemplo de cuatro dígitos para reducir colisiones y adivinación. El cliente no decide el resultado ni recibe las respuestas antes de enviar.
+
+Una actualización condicional garantiza un solo canje incluso ante solicitudes concurrentes. Canjes repetidos devuelven HTTP 409. El sistema limita a un premio por ronda; no identifica personas ni impide que una misma persona complete varias rondas.
+
+Punto de recolección oficial: **Facultad de tecnología e innovación (Edificio A)**. Se publica en los metadatos HTML y en todas las vistas.
+
+Categorías oficiales (compartidas entre formulario, validación API y restricción de base de datos): Celulares, Cargadores, Cables, Teclados, Mouse, Audífonos y Otros aparatos en desuso.
+
+El registro recibe alias, categoría, cantidad entera y peso estimado con hasta tres decimales; 0 kg significa aún no pesado. Guarda un identificador aleatorio y el JSON canónico codificado en UTF-8, representado en hexadecimal y binario (educativo, no una lectura física del circuito). El comprobante se muestra inmediatamente y permite imprimir o guardar como PDF desde el navegador. No hay una consulta pública posterior del comprobante con datos personales. Ante una interrupción de red, confirma con el staff antes de repetir una entrega: el formulario no implementa idempotencia.
+
+El dashboard publica solo agregados e IDs de donaciones; nunca alias ni tokens de premio. No convierte kilos recogidos en estimaciones de CO₂ sin una metodología validada.
+
+HTTP Basic usa comparación de credenciales en tiempo constante. Sin contraseña configurada, staff permanece cerrado. Usa HTTPS en producción; no guardes contraseñas en el frontend. Los POST rechazan orígenes distintos cuando el navegador envía `Origin`. El despliegue de un evento público de gran tráfico requiere añadir límites de solicitudes en infraestructura; no se incluye control de identidad de participantes ni protección distribuida contra abuso.
+
+## Docker, MySQL y Caddy
+
+1. Copia `.env.example` a `.env`. Define contraseñas distintas para `STAFF_PASSWORD` (mínimo 16 caracteres), `MYSQL_PASSWORD` y `MYSQL_ROOT_PASSWORD`. Para MySQL utiliza valores seguros para URL, por ejemplo generados con `openssl rand -hex 24`. Define `ACME_EMAIL` con un correo real.
+2. Apunta DNS A (y AAAA solo si IPv6 funciona) de `bitverde.jaimeberrios.com` al servidor. Abre TCP 80/443 y UDP 443 para HTTP/3.
+3. Ejecuta:
+
+```bash
+docker compose config --quiet
+docker compose up -d --build
+docker compose ps
+docker compose logs --tail=100 app caddy
+```
+
+Caddy gestiona certificados y redirige HTTP a HTTPS. Solo Caddy publica puertos; MySQL y FastAPI quedan en redes Docker. `--forwarded-allow-ips=*` se usa exclusivamente porque la app no publica un puerto al host; si cambias la topología, restringe la confianza al proxy. Si ya existe Caddy en el servidor, integra `reverse_proxy` en él y evita iniciar un segundo servicio en los mismos puertos.
+
+Los volúmenes `mysql_data`, `caddy_data` y `caddy_config` preservan información y certificados. No uses `docker compose down -v` si deseas conservar los registros. Respalda MySQL con `mysqldump` desde una sesión segura y prueba la restauración antes del evento. Las credenciales iniciales de MySQL solo se aplican a un volumen vacío; cambiarlas en `.env` no rota usuarios existentes.
+
+Las tablas se crean al primer arranque con `create_all`. Esta versión inicial no incluye migraciones: un cambio posterior de esquema requiere una migración explícita (por ejemplo, Alembic), además de respaldo.
+
+## Pruebas
+
+```bash
+python -m pytest -q
+node --check app/static/js/app.js
+```
+
+Las pruebas usan una base SQLite dedicada en `/tmp/bitverde-tests.db` y la reinician. Cubren flujo aprobado/fallido, expiración, validación, privacidad del dashboard, bytes UTF-8, autenticación, protección de origen y canjes concurrentes. No ejecutes varias suites a la vez contra ese mismo archivo.
+
+Comprobación manual antes del evento: probar móvil y monitor, escanear QR físico, registrar una entrega, guardar comprobante y canjear un token dos veces. MySQL/Docker, DNS y emisión TLS necesitan validación en el servidor de destino.
+
+## Organización
+
+`app/core`: configuración, conexión y seguridad. `models`: persistencia. `schemas`: validación. `services`: banco de preguntas. `routes/api.py`: operaciones JSON; `routes/views.py`: vistas Jinja. `static`: estilos y comportamiento. Tailwind usa CDN y las fuentes usan Google Fonts con alternativas locales. El CSS local define la presentación principal; la lógica y el QR funcionan sin esos servicios. Para eliminar dependencias externas, compila Tailwind y sirve fuentes locales antes del despliegue.
+
+Referencias técnicas: [HTTP Basic en FastAPI](https://fastapi.tiangolo.com/advanced/security/http-basic-auth/), [SQLAlchemy y MySQL](https://docs.sqlalchemy.org/en/20/dialects/mysql.html), [SQLAlchemy y SQLite](https://docs.sqlalchemy.org/en/20/dialects/sqlite.html).
+
+Si existe una base de datos creada con las categorías anteriores, respáldala y migra los valores antes de aplicar la nueva restricción de categoría. `create_all` no altera tablas existentes; no se reclasifican registros históricos automáticamente.
