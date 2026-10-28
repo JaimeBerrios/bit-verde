@@ -2,6 +2,7 @@
 
 ## Cambios de UX validados
 
+- Opciones sin cheques ni marcas que anticipen la respuesta. Progreso por etapas, opciones con letras neutrales y feedback textual después de elegir.
 - Tres retos cotidianos: laptop/AND, carga del celular/OR y contaminación RAEE, con pistas visibles.
 - Reintentos por pregunta sin reiniciar; errores sin premio ni cierre de ronda.
 - Finalización idempotente: repetir el envío devuelve el mismo token y no duplica premios.
@@ -15,10 +16,10 @@
 Entorno: Python 3.11.17, `.venv` local y SQLite dedicada de pruebas en `/tmp/bitverde-tests.db`.
 
 ```bash
-.venv/bin/python -m pytest -v --junitxml=reports/pytest.xml
+.venv/bin/python -m pytest -q --junitxml=reports/pytest.xml
 ```
 
-**Resultado: 24 passed, 1 warning in 3.32s. Código de salida: 0.**
+**Resultado: 24 passed, 1 warning in 3.39s. Código de salida: 0.**
 
 Las 17 pruebas anteriores se adaptaron al nuevo formato de token y a la recuperación del resultado. Se añadieron 7 pruebas que cubren preguntas fáciles y reintentos, validación/expiración por respuesta, finalización concurrente, premio por donación, lista privada de 10 tokens ordenada por emisión y su actualización tras el canje, tokens anteriores y plantillas.
 

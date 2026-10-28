@@ -44,6 +44,11 @@ if (document.body.dataset.page === 'game') {
   function setProgress() {
     $('#game-progress').value = index;
     $('#game-progress').textContent = `${index} de 3`;
+    $('#game-progress').setAttribute('aria-valuetext', `${index} de 3 retos completados`);
+    const steps = $('#game-steps');
+    if (steps) steps.querySelectorAll('li').forEach((step, i) => {
+      step.className = i < index ? 'step-done' : i === index ? 'step-current' : '';
+    });
   }
   async function start() {
     if (busy) return;
@@ -64,16 +69,23 @@ if (document.body.dataset.page === 'game') {
   }
   function render() {
     content.replaceChildren(); setProgress();
+    message('#game-message', 'Elige una opción. Puedes reintentar si lo necesitas.');
     $('#step').textContent = `RETO ${index + 1} DE 3`;
     content.append(node('h3', session.questions[index].prompt));
-    const hint = node('p', session.questions[index].hint, 'question-hint');
+    const hint = node('p', undefined, 'question-hint');
+    hint.append(node('strong', 'Pista: '), node('span', session.questions[index].hint));
     hint.id = 'question-hint';
     content.append(hint);
     const options = node('div', undefined, 'options');
     options.setAttribute('role', 'group');
     options.setAttribute('aria-label', 'Elige una respuesta');
     session.questions[index].options.forEach((text, i) => {
-      const button = node('button', text, 'option');
+      const button = node('button', undefined, 'option');
+      const key = node('span', String.fromCharCode(65 + i), 'option-key');
+      key.setAttribute('aria-hidden', 'true');
+      const label = node('span', text.replace(/^\[[A-C]\]\s*/, ''), 'option-label');
+      const state = node('span', '', 'option-state');
+      button.append(key, label, state);
       button.type = 'button';
       button.setAttribute('aria-pressed', 'false');
       button.setAttribute('aria-describedby', 'question-hint');
@@ -89,15 +101,18 @@ if (document.body.dataset.page === 'game') {
     for (const button of buttons) {
       button.disabled = true;
       button.classList.remove('is-wrong', 'is-correct', 'is-selected');
+      button.querySelector('.option-state').textContent = '';
       button.setAttribute('aria-pressed', String(button === selected));
     }
     // Highlight the tap immediately; correctness still comes from the server.
     selected.classList.add('is-selected');
+    selected.querySelector('.option-state').textContent = 'Comprobando…';
     content.setAttribute('aria-busy', 'true');
     message('#game-message', '');
     try {
       const result = await api(`/trivia/${session.session_id}/answer`, {question_index: index, answer});
       selected.classList.add(result.correct ? 'is-correct' : 'is-wrong');
+      selected.querySelector('.option-state').textContent = result.correct ? 'Correcto' : 'Intenta otra vez';
       message('#game-message', result.feedback, !result.correct);
       if (!result.correct) {
         for (const button of buttons) button.disabled = false;
@@ -116,6 +131,8 @@ if (document.body.dataset.page === 'game') {
       message('#game-message', e.message + ' Puedes volver a tocar la respuesta.', true);
       for (const button of buttons) button.disabled = false;
       selected.classList.remove('is-selected');
+      selected.setAttribute('aria-pressed', 'false');
+      selected.querySelector('.option-state').textContent = '';
       busy = false;
     } finally { content.setAttribute('aria-busy', 'false'); }
   }

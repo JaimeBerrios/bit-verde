@@ -2,19 +2,19 @@ TAP version 13
 # Subtest: Trivia: error, reintento sin reiniciar, progreso, cupón, copia y nueva ronda
 ok 1 - Trivia: error, reintento sin reiniciar, progreso, cupón, copia y nueva ronda
   ---
-  duration_ms: 23.346815
+  duration_ms: 25.184692
   type: 'test'
   ...
 # Subtest: Ticket compartido: enlace para jugar y alternativa si falla el portapapeles
 ok 2 - Ticket compartido: enlace para jugar y alternativa si falla el portapapeles
   ---
-  duration_ms: 2.954154
+  duration_ms: 2.321041
   type: 'test'
   ...
 # Subtest: Staff: lista privada, canje con un clic y actualización de estado
 ok 3 - Staff: lista privada, canje con un clic y actualización de estado
   ---
-  duration_ms: 58.836407
+  duration_ms: 50.940967
   type: 'test'
   ...
 1..3
@@ -25,4 +25,4 @@ ok 3 - Staff: lista privada, canje con un clic y actualización de estado
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 100.910583
+# duration_ms 91.035275

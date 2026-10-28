@@ -4,14 +4,14 @@ def questions():
     return [
         {
             "prompt": "Para reparar este circuito y encender tu laptop necesitas conectar la corriente (1) Y presionar el botón de encendido (1). ¿Cuál es la salida del circuito?",
-            "options": ["1 - Enciende ✅", "0 - Apagado"],
+            "options": ["1 - Enciende", "0 - Apagado"],
             "hint": "Una compuerta AND solo da 1 si AMBAS entradas están activas.",
             "correct": 0,
             "explanation": "¡Enciende! Corriente Y botón activos: la salida es 1.",
         },
         {
             "prompt": "Para recargar tu celular puedes usar un tomacorriente O una batería portátil. Con solo tener UNA opción disponible, ¿el teléfono recibe carga?",
-            "options": ["1 - Sí recibe carga ✅", "0 - No carga"],
+            "options": ["1 - Sí recibe carga", "0 - No carga"],
             "hint": "Una compuerta OR se activa si al menos una entrada es 1.",
             "correct": 0,
             "explanation": "¡Sí recibe carga! Basta con tener una opción disponible.",
@@ -19,7 +19,7 @@ def questions():
         {
             "prompt": "¿Por qué NO debemos tirar cables, cargadores o baterías a la basura común?",
             "options": [
-                "[A] Porque contienen metales pesados que contaminan el suelo y agua ✅",
+                "[A] Porque contienen metales pesados que contaminan el suelo y agua",
                 "[B] Porque ocupan poco espacio en el vertedero",
                 "[C] Porque se degradan solos en 2 días",
             ],

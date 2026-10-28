@@ -22,7 +22,7 @@ class Element {
   focus() {this.owner.activeElement = this;}
   querySelectorAll(selector) {
     return this.children.flatMap(child => [child, ...child.querySelectorAll('*')])
-      .filter(child => selector === '*' || (selector.startsWith('#') ? child.id === selector.slice(1) : child.tagName === selector));
+      .filter(child => selector === '*' || (selector.startsWith('#') ? child.id === selector.slice(1) : selector.startsWith('.') ? child.classList.contains(selector.slice(1)) : child.tagName === selector));
   }
   querySelector(selector) {return this.querySelectorAll(selector)[0] || null;}
 }
@@ -61,8 +61,11 @@ test('Trivia: error, reintento sin reiniciar, progreso, cupón, copia y nueva ro
   await ui.$('#start').onclick();
   assert.equal(ui.$('#step').textContent, 'RETO 1 DE 3');
   let buttons = ui.$('#game-content').querySelectorAll('button');
+  assert(buttons.every(button => !button.classList.contains('is-correct') && button.querySelector('.option-state').textContent === ''));
+  assert.equal(buttons[0].querySelector('.option-key').textContent, 'A');
   await buttons[1].onclick();
   assert(buttons[1].classList.contains('is-wrong'));
+  assert.equal(buttons[1].querySelector('.option-state').textContent, 'Intenta otra vez');
   assert.equal(buttons[1].attributes['aria-pressed'], 'true');
   assert(buttons.every(button => !button.disabled));
   assert.equal(ui.$('#step').textContent, 'RETO 1 DE 3');
@@ -70,6 +73,7 @@ test('Trivia: error, reintento sin reiniciar, progreso, cupón, copia y nueva ro
     buttons = ui.$('#game-content').querySelectorAll('button');
     await buttons[0].onclick();
     assert(buttons[0].classList.contains('is-correct'));
+    assert.equal(buttons[0].querySelector('.option-state').textContent, 'Correcto');
     assert(buttons.every(button => button.disabled));
     assert.equal(ui.$('#game-progress').value, i + 1);
     ui.timers.find(timer => timer.ms === 450).callback();

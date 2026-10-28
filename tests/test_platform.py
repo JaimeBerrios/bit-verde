@@ -146,10 +146,11 @@ def test_easy_questions_and_immediate_retry(client):
     session = start['session_id']
     q = start['questions']
     assert len(q) == 3 and all('correct' not in item for item in q)
+    assert all('✅' not in option and '✓' not in option for item in q for option in item['options'])
     assert 'laptop' in q[0]['prompt'] and 'AND' in q[0]['hint']
     assert 'celular' in q[1]['prompt'] and 'OR' in q[1]['hint']
-    assert q[0]['options'] == ['1 - Enciende ✅', '0 - Apagado']
-    assert q[1]['options'] == ['1 - Sí recibe carga ✅', '0 - No carga']
+    assert q[0]['options'] == ['1 - Enciende', '0 - Apagado']
+    assert q[1]['options'] == ['1 - Sí recibe carga', '0 - No carga']
     for i in range(3):
         wrong = client.post(f'/api/trivia/{session}/answer', json={'question_index':i, 'answer':1})
         assert wrong.status_code == 200 and not wrong.json()['correct']
