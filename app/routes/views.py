@@ -8,7 +8,7 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parents[1] / "templates"))
 
 def page(request, name):
-    return templates.TemplateResponse(request=request, name=name+".html", context={"public_url": settings.public_url, "categories": list(Category), "collection_point": COLLECTION_POINT})
+    return templates.TemplateResponse(request=request, name=name+".html", context={"public_url": settings.public_url, "categories": list(Category), "collection_point": COLLECTION_POINT, "trivia_goal_seconds": 45})
 
 @router.get("/")
 def index(request: Request): return page(request, "index")

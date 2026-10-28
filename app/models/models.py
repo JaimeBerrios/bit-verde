@@ -32,3 +32,14 @@ class Donation(Base):
     payload_hex: Mapped[str] = mapped_column(Text)
     payload_binary: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+
+
+class Reward(Base):
+    """Premios emitidos por trivia o entrega, sin datos personales del visitante."""
+    __tablename__ = "rewards"
+    token: Mapped[str] = mapped_column(String(40), primary_key=True)
+    source: Mapped[str] = mapped_column(String(16))
+    source_id: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now, index=True)
+    redeemed: Mapped[bool] = mapped_column(Boolean, default=False)
+    redeemed_at: Mapped[datetime | None] = mapped_column(DateTime)

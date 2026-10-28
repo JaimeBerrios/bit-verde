@@ -1,37 +1,51 @@
 # Reporte de pruebas funcionales — BitVerde
 
-Contenido actualizado antes de ejecutar la suite:
+## Cambios de UX validados
 
-- Categorías exactas: Celulares, Cargadores, Cables, Teclados, Mouse, Audífonos y Otros aparatos en desuso.
-- Catálogo compartido por formulario, Pydantic y modelo SQLAlchemy; restricción CHECK en tablas nuevas.
-- Punto de recolección en metadatos HTML y texto visible de todas las vistas: Facultad de tecnología e innovación (Edificio A).
+- Tres retos cotidianos: laptop/AND, carga del celular/OR y contaminación RAEE, con pistas visibles.
+- Reintentos por pregunta sin reiniciar; errores sin premio ni cierre de ronda.
+- Finalización idempotente: repetir el envío devuelve el mismo token y no duplica premios.
+- Ticket de Circuito tanto por trivia como por registro de RAEE, con copia y nueva partida.
+- Lista staff privada de los últimos 10 tokens, polling de 3 segundos y canje con un clic.
+- Compatibilidad con tokens anteriores y canje único bajo concurrencia.
+- Se conservan las siete categorías oficiales y el punto de recolección de la campaña.
 
-Entorno: Python 3.11.17, entorno virtual local `.venv`, SQLite dedicada de pruebas en `/tmp/bitverde-tests.db`. Dependencias instaladas desde `requirements-dev.txt`; versiones efectivas en `dependencies.txt`. `pip check`: sin dependencias incompatibles.
+## Ejecución de backend
 
-Comando:
+Entorno: Python 3.11.17, `.venv` local y SQLite dedicada de pruebas en `/tmp/bitverde-tests.db`.
 
 ```bash
 .venv/bin/python -m pytest -v --junitxml=reports/pytest.xml
 ```
 
-Resultado: **17 passed, 1 warning in 0.91s**. Código de salida: **0**.
+**Resultado: 24 passed, 1 warning in 3.32s. Código de salida: 0.**
 
-| Cobertura | Pruebas aprobadas |
-| --- | ---: |
-| Trivia aprobada y canje concurrente único | 1 |
-| Trivia fallida, validación y expiración | 1 |
-| Bytes UTF-8, métricas y privacidad | 1 |
-| Vistas, autenticación, origen y QR | 1 |
-| Registro y persistencia de cada categoría oficial | 7 |
-| Rechazo de las categorías anteriores | 5 |
-| Opciones HTML, OpenAPI, punto de recolección y restricción SQL directa | 1 |
+Las 17 pruebas anteriores se adaptaron al nuevo formato de token y a la recuperación del resultado. Se añadieron 7 pruebas que cubren preguntas fáciles y reintentos, validación/expiración por respuesta, finalización concurrente, premio por donación, lista privada de 10 tokens ordenada por emisión y su actualización tras el canje, tokens anteriores y plantillas.
 
-El aviso es `StarletteDeprecationWarning`: Starlette desaconseja usar `httpx` con `TestClient` y recomienda `httpx2`. No hubo fallos ni pruebas omitidas; se conserva el aviso en la salida completa.
+El único aviso es `StarletteDeprecationWarning`: Starlette desaconseja usar `httpx` con `TestClient` y recomienda `httpx2`. No hubo fallos ni pruebas omitidas. La suite se ejecutó fuera del sandbox porque el cliente ASGI se bloquea en ese aislamiento, como se verificó en la ejecución anterior.
 
-La ejecución dentro del sandbox se bloqueó al iniciar el cliente ASGI; se interrumpió y se ejecutó la suite fuera del aislamiento, donde terminó correctamente. La descarga de dependencias también necesitó acceso de red fuera del sandbox.
+## Ejecución JavaScript
 
-Comprobaciones adicionales aprobadas: compilación sintáctica Python, `node --check app/static/js/app.js` y `git diff --check`.
+Entorno: Node.js v22.23.3, sin dependencias adicionales.
 
-Evidencias: `pytest.txt` (salida completa), `pytest.xml` (JUnit) y `dependencies.txt` (versiones instaladas).
+```bash
+node tests/test_ui.cjs
+```
 
-Alcance: API y renderizado de plantillas mediante TestClient con SQLite. No se ejecutó validación visual en navegador, MySQL, Docker en funcionamiento ni DNS/TLS del dominio. Las tablas existentes requieren migración explícita para incorporar la nueva restricción; no se modificaron ni reclasificaron registros históricos.
+**Resultado: 3 pruebas aprobadas, 0 fallidas, 0 omitidas.**
+
+- Selección errónea, reintento, selección correcta, progreso, ticket, copia y nueva ronda.
+- Ticket compartido y alternativa cuando no hay acceso al portapapeles.
+- Lista staff, canje con un clic y actualización del estado.
+
+Estas pruebas ejecutan el JavaScript de la aplicación con un DOM y respuestas HTTP simulados. No validan el renderizado real ni la integración del portapapeles en un navegador.
+
+## Otras comprobaciones
+
+Aprobadas: `node --check app/static/js/app.js`, compilación sintáctica de Python y `git diff --check`.
+
+Evidencias: `pytest.txt`, `pytest.xml`, `ui-tests.txt` y `dependencies.txt`.
+
+## Límites de la validación
+
+La meta de menos de 45 segundos requiere prueba cronometrada con visitantes. No se ejecutó validación visual en navegador, MySQL, Docker en funcionamiento ni DNS/TLS del dominio. La nueva tabla de premios se crea al iniciar; las restricciones de categoría en tablas antiguas siguen requiriendo una migración explícita. No se reclasificaron ni eliminaron registros históricos.

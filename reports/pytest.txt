@@ -3,25 +3,32 @@ platform linux -- Python 3.11.17, pytest-9.2.0, pluggy-1.7.0 -- /home/jaimeberri
 cachedir: .pytest_cache
 rootdir: /home/jaimeberrios/Proyectos/UNAB/Ciclo-6/Sistemas-Digitales/bit-verde
 plugins: anyio-4.15.1
-collecting ... collected 17 items
+collecting ... collected 24 items
 
-tests/test_platform.py::test_round_and_atomic_redemption PASSED          [  5%]
-tests/test_platform.py::test_failure_validation_and_expiry PASSED        [ 11%]
-tests/test_platform.py::test_donation_bytes_metrics_and_privacy PASSED   [ 17%]
-tests/test_platform.py::test_views_security_and_qr PASSED                [ 23%]
-tests/test_platform.py::test_official_categories_persist[Celulares] PASSED [ 29%]
-tests/test_platform.py::test_official_categories_persist[Cargadores] PASSED [ 35%]
-tests/test_platform.py::test_official_categories_persist[Cables] PASSED  [ 41%]
-tests/test_platform.py::test_official_categories_persist[Teclados] PASSED [ 47%]
-tests/test_platform.py::test_official_categories_persist[Mouse] PASSED   [ 52%]
-tests/test_platform.py::test_official_categories_persist[Aud\xedfonos] PASSED [ 58%]
-tests/test_platform.py::test_official_categories_persist[Otros aparatos en desuso] PASSED [ 64%]
-tests/test_platform.py::test_previous_categories_rejected[Cables/Cargadores] PASSED [ 70%]
-tests/test_platform.py::test_previous_categories_rejected[Placas/Motherboards] PASSED [ 76%]
-tests/test_platform.py::test_previous_categories_rejected[Dispositivos peque\xf1os] PASSED [ 82%]
-tests/test_platform.py::test_previous_categories_rejected[Bater\xedas] PASSED [ 88%]
-tests/test_platform.py::test_previous_categories_rejected[Otros] PASSED  [ 94%]
-tests/test_platform.py::test_campaign_content_and_database_constraint PASSED [100%]
+tests/test_platform.py::test_round_and_atomic_redemption PASSED          [  4%]
+tests/test_platform.py::test_failure_validation_and_expiry PASSED        [  8%]
+tests/test_platform.py::test_donation_bytes_metrics_and_privacy PASSED   [ 12%]
+tests/test_platform.py::test_views_security_and_qr PASSED                [ 16%]
+tests/test_platform.py::test_official_categories_persist[Celulares] PASSED [ 20%]
+tests/test_platform.py::test_official_categories_persist[Cargadores] PASSED [ 25%]
+tests/test_platform.py::test_official_categories_persist[Cables] PASSED  [ 29%]
+tests/test_platform.py::test_official_categories_persist[Teclados] PASSED [ 33%]
+tests/test_platform.py::test_official_categories_persist[Mouse] PASSED   [ 37%]
+tests/test_platform.py::test_official_categories_persist[Aud\xedfonos] PASSED [ 41%]
+tests/test_platform.py::test_official_categories_persist[Otros aparatos en desuso] PASSED [ 45%]
+tests/test_platform.py::test_previous_categories_rejected[Cables/Cargadores] PASSED [ 50%]
+tests/test_platform.py::test_previous_categories_rejected[Placas/Motherboards] PASSED [ 54%]
+tests/test_platform.py::test_previous_categories_rejected[Dispositivos peque\xf1os] PASSED [ 58%]
+tests/test_platform.py::test_previous_categories_rejected[Bater\xedas] PASSED [ 62%]
+tests/test_platform.py::test_previous_categories_rejected[Otros] PASSED  [ 66%]
+tests/test_platform.py::test_campaign_content_and_database_constraint PASSED [ 70%]
+tests/test_platform.py::test_easy_questions_and_immediate_retry PASSED   [ 75%]
+tests/test_platform.py::test_answer_validation_and_expiration PASSED     [ 79%]
+tests/test_platform.py::test_concurrent_submit_issues_one_reward PASSED  [ 83%]
+tests/test_platform.py::test_donation_reward_is_redeemable_without_inflating_repairs PASSED [ 87%]
+tests/test_platform.py::test_recent_ten_tokens_are_private_ordered_and_refreshable PASSED [ 91%]
+tests/test_platform.py::test_legacy_tokens_remain_usable PASSED          [ 95%]
+tests/test_platform.py::test_new_ticket_and_staff_ui_templates PASSED    [100%]
 
 =============================== warnings summary ===============================
 .venv/lib64/python3.11/site-packages/fastapi/testclient.py:1
@@ -30,4 +37,4 @@ tests/test_platform.py::test_campaign_content_and_database_constraint PASSED [10
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 - generated xml file: /home/jaimeberrios/Proyectos/UNAB/Ciclo-6/Sistemas-Digitales/bit-verde/reports/pytest.xml -
-======================== 17 passed, 1 warning in 0.91s =========================
+======================== 24 passed, 1 warning in 3.32s =========================

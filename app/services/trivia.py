@@ -1,14 +1,30 @@
-import secrets
+"""Retos cotidianos de lectura rápida para visitantes sin formación técnica."""
 
-# Each round selects one gate, one number conversion and one environmental challenge.
 def questions():
-    gate = secrets.choice([("AND", "1", "0", 0), ("OR", "1", "0", 1), ("NOT", "0", "", 1), ("XOR", "1", "1", 0)])
-    name, a, b, result = gate
-    number = secrets.choice([10, 12, 15])
-    q = [
-        {"prompt": f"Compuerta {name}: entrada {a}" + (f" y {b}" if b else "") + ". ¿Qué salida repara el circuito?", "options": ["0", "1"], "correct": result,
-         "explanation": "AND requiere dos unos; OR al menos uno; NOT invierte; XOR vale uno si las entradas son distintas."},
-        {"prompt": f"El bus muestra {number:04b}. ¿Cuál es su valor hexadecimal?", "options": ["0xA", "0xC", "0xF"], "correct": [10,12,15].index(number), "explanation": f"{number:04b} en binario representa {number} en decimal y 0x{number:X} en hexadecimal."},
-        {"prompt": "Un dispositivo ya no funciona. ¿Qué ayuda a gestionar sus residuos?", "options": ["Mezclarlo con basura doméstica", "Quemarlo para reducir su tamaño", "Entregarlo a un punto de recolección RAEE"], "correct": 2, "explanation": "La recolección diferenciada facilita recuperar materiales y gestionar componentes que requieren cuidado."}
+    return [
+        {
+            "prompt": "Para reparar este circuito y encender tu laptop necesitas conectar la corriente (1) Y presionar el botón de encendido (1). ¿Cuál es la salida del circuito?",
+            "options": ["1 - Enciende ✅", "0 - Apagado"],
+            "hint": "Una compuerta AND solo da 1 si AMBAS entradas están activas.",
+            "correct": 0,
+            "explanation": "¡Enciende! Corriente Y botón activos: la salida es 1.",
+        },
+        {
+            "prompt": "Para recargar tu celular puedes usar un tomacorriente O una batería portátil. Con solo tener UNA opción disponible, ¿el teléfono recibe carga?",
+            "options": ["1 - Sí recibe carga ✅", "0 - No carga"],
+            "hint": "Una compuerta OR se activa si al menos una entrada es 1.",
+            "correct": 0,
+            "explanation": "¡Sí recibe carga! Basta con tener una opción disponible.",
+        },
+        {
+            "prompt": "¿Por qué NO debemos tirar cables, cargadores o baterías a la basura común?",
+            "options": [
+                "[A] Porque contienen metales pesados que contaminan el suelo y agua ✅",
+                "[B] Porque ocupan poco espacio en el vertedero",
+                "[C] Porque se degradan solos en 2 días",
+            ],
+            "hint": "Piensa en cómo sus materiales pueden afectar al ambiente.",
+            "correct": 0,
+            "explanation": "¡Exacto! Entrégalos en un punto de recolección RAEE para su gestión adecuada.",
+        },
     ]
-    return q

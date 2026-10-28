@@ -26,9 +26,17 @@ Abre `http://localhost:8000`. SQLite crea `bitverde.db` al iniciar. Si pruebas e
 
 ## Funcionamiento
 
-La ronda selecciona una compuerta AND/OR/NOT/XOR, una conversión binario–hexadecimal y una pregunta ambiental. Caduca a los 20 minutos y solo acepta un envío válido. Se aprueba con **3/3**; el servidor genera un token aleatorio de 64 bits con formato `#0x0123456789ABCDEF-BIT`, único en la base de datos. El formato es más largo que el ejemplo de cuatro dígitos para reducir colisiones y adivinación. El cliente no decide el resultado ni recibe las respuestas antes de enviar.
+La trivia presenta tres retos cotidianos: encender una laptop (AND), cargar un celular (OR) y evitar contaminar con RAEE. Incluye pistas visibles y botones grandes. Está diseñada con el objetivo de completarse en menos de **45 segundos**, sin cuenta regresiva ni conocimientos previos. Este objetivo necesita validación cronometrada con visitantes; las pruebas automatizadas no miden el tiempo de lectura.
 
-Una actualización condicional garantiza un solo canje incluso ante solicitudes concurrentes. Canjes repetidos devuelven HTTP 409. El sistema limita a un premio por ronda; no identifica personas ni impide que una misma persona complete varias rondas.
+Cada opción se comprueba en el servidor mediante `POST /api/trivia/{session_id}/answer`. Un error permite reintentar la misma pregunta sin perder el avance. El acierto muestra un borde verde y avanza tras 450 ms. Los estados incluyen mensajes de texto y atributos accesibles; la vibración visual suave se omite cuando el visitante solicita reducir el movimiento.
+
+La ronda caduca a los 20 minutos. `POST /api/trivia/{session_id}/submit` vuelve a validar las tres respuestas: un intento incorrecto no cierra la ronda. Al acertar las tres, emite un único token hexadecimal de 64 bits con prefijo `#BIT-`, por ejemplo `#BIT-A4F29C315D627E80`. Repetir el envío final recupera el mismo token, incluso si se perdió la respuesta de red; no incrementa el contador ni emite otro premio. Los tokens conservan longitud suficiente para el stand y no requieren transcripción gracias al panel staff.
+
+Tanto una trivia completada como una donación registrada muestran el **Ticket de Circuito** con “¡Circuito Optimizado! Pasa por tu Bus de Datos Saludable 🍓🍇”, el token destacado y botones para copiarlo y jugar de nuevo. Si el portapapeles no está disponible, se ofrece seleccionar el código o guardar una captura. Cada donación registra su premio en la misma transacción que el comprobante; no incrementa la métrica de trivias completadas.
+
+`GET /api/staff/tokens`, protegido con HTTP Basic, devuelve los últimos **10 tokens** de trivia y donaciones por fecha de emisión. `/staff` actualiza la lista cada **3 segundos** y permite **Marcar Canjeado** con un toque; conserva también la búsqueda manual. Una actualización condicional garantiza un solo canje incluso ante solicitudes concurrentes. Canjes repetidos devuelven HTTP 409. Los tokens anteriores con formato `#0x…-BIT` siguen siendo consultables, visibles en la lista y canjeables. Ningún token de premio se publica en el dashboard.
+
+La nueva tabla `rewards` se crea automáticamente al iniciar, sin alterar tablas existentes. El sistema limita a un premio por ronda o registro; no identifica personas ni impide que una misma persona complete varias rondas o registre varias entregas.
 
 Punto de recolección oficial: **Facultad de tecnología e innovación (Edificio A)**. Se publica en los metadatos HTML y en todas las vistas.
 
@@ -64,9 +72,10 @@ Las tablas se crean al primer arranque con `create_all`. Esta versión inicial n
 ```bash
 python -m pytest -q
 node --check app/static/js/app.js
+node tests/test_ui.cjs
 ```
 
-Las pruebas usan una base SQLite dedicada en `/tmp/bitverde-tests.db` y la reinician. Cubren flujo aprobado/fallido, expiración, validación, privacidad del dashboard, bytes UTF-8, autenticación, protección de origen y canjes concurrentes. No ejecutes varias suites a la vez contra ese mismo archivo.
+Las pruebas usan una base SQLite dedicada en `/tmp/bitverde-tests.db` y la reinician. Cubren reintentos, respuestas cotidianas, recuperación de premios, categorías oficiales, expiración, validación, privacidad del dashboard, bytes UTF-8, autenticación, lista staff, tokens antiguos y envíos/canjes concurrentes. Las pruebas JavaScript usan el ejecutor integrado de Node y un DOM simulado para verificar selección, progreso, ticket, portapapeles y canje con un clic; no sustituyen la validación visual en navegador. No ejecutes varias suites a la vez contra ese mismo archivo.
 
 Comprobación manual antes del evento: probar móvil y monitor, escanear QR físico, registrar una entrega, guardar comprobante y canjear un token dos veces. MySQL/Docker, DNS y emisión TLS necesitan validación en el servidor de destino.
 
@@ -77,3 +86,7 @@ Comprobación manual antes del evento: probar móvil y monitor, escanear QR fís
 Referencias técnicas: [HTTP Basic en FastAPI](https://fastapi.tiangolo.com/advanced/security/http-basic-auth/), [SQLAlchemy y MySQL](https://docs.sqlalchemy.org/en/20/dialects/mysql.html), [SQLAlchemy y SQLite](https://docs.sqlalchemy.org/en/20/dialects/sqlite.html).
 
 Si existe una base de datos creada con las categorías anteriores, respáldala y migra los valores antes de aplicar la nueva restricción de categoría. `create_all` no altera tablas existentes; no se reclasifican registros históricos automáticamente.
+
+## Recursos institucionales
+
+Las cuatro imágenes proporcionadas se conservan sin modificar en `app/static/images/`. El pie de página compartido muestra `logo-unab.png` y `logo-facultad.png`, con texto alternativo, proporciones originales y carga diferida. `logo-portada.png` y `acreditacion.png` quedan disponibles para futuros usos.

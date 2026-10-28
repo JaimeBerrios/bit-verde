@@ -7,24 +7,214 @@ async function api(path, body) {
   return data;
 }
 function message(selector,text,error=false){const el=$(selector);el.textContent=text;el.className=error?'error':'success';}
-if(document.body.dataset.page==='game'){
- let session, answers=[], index=0;
- const content=$('#game-content');
- async function start(){const button=$('#start');button.disabled=true;message('#game-message','Preparando circuito…');try{session=await api('/trivia/start',{});answers=[];index=0;message('#game-message','');render();}catch(e){message('#game-message',e.message,true);button.disabled=false;}}
- function render(){content.replaceChildren();$('#step').textContent=`PASO ${index+1} DE 3`;content.append(node('h3',session.questions[index].prompt));const options=node('div',undefined,'options');session.questions[index].options.forEach((text,i)=>{const button=node('button',text,'option');button.onclick=()=>{answers.push(i);index++;if(index<3)render();else finish();};options.append(button);});content.append(options);}
- async function finish(){content.replaceChildren(node('p','Comprobando reparación…'));try{const result=await api(`/trivia/${session.session_id}/submit`,{answers});$('#step').textContent=`${result.score} / 3 ACIERTOS`;content.replaceChildren(node('h3',result.passed?'¡Circuito reparado!':'Cada intento te enseña algo.'));if(result.passed){content.append(node('p','Guarda este token y preséntalo al staff para canjear tu Bus de Datos Saludable.'),node('code',result.token,'token'));}result.feedback.forEach(text=>content.append(node('p',text)));const restart=node('button','Jugar otra vez →','button');restart.onclick=start;restart.id='start';content.append(restart);}catch(e){message('#game-message',e.message+' Si perdiste la conexión, no envíes otra ronda automáticamente.',true);const retry=node('button','Reintentar envío','button');retry.onclick=finish;content.append(retry);}}
- $('#start').onclick=start;
+function circuitTicket(token, restart) {
+  const ticket = node('section', undefined, 'circuit-ticket');
+  ticket.setAttribute('aria-label', 'Ticket de Circuito');
+  ticket.append(node('span', 'TICKET DE CIRCUITO', 'eyebrow'),
+    node('h3', '¡Circuito Optimizado!'),
+    node('p', 'Pasa por tu Bus de Datos Saludable 🍓🍇'),
+    node('code', token, 'token reward-token'));
+  const status = node('p');
+  status.setAttribute('role', 'status');
+  const copy = node('button', 'Copiar Token', 'button');
+  copy.type = 'button';
+  copy.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(token);
+      status.textContent = 'Token copiado ✓';
+    } catch {
+      status.textContent = 'No se pudo copiar. Mantén presionado el token para seleccionarlo o toma una captura.';
+    }
+  };
+  const again = node(restart ? 'button' : 'a', 'Jugar de nuevo', 'button light');
+  if (restart) { again.type = 'button'; again.onclick = restart; }
+  else again.href = '/#game';
+  const actions = node('div', undefined, 'ticket-actions');
+  actions.append(copy, again);
+  ticket.append(actions, status, node('p', 'Muestra este ticket al staff. Un canje por token.', 'muted'));
+  return ticket;
+}
+if (document.body.dataset.page === 'game') {
+  let session, answers = [], index = 0, busy = false;
+  const content = $('#game-content');
+  function focusHeading() {
+    const heading = content.querySelector('h3');
+    if (heading) { heading.tabIndex = -1; heading.focus({preventScroll: true}); }
+  }
+  function setProgress() {
+    $('#game-progress').value = index;
+    $('#game-progress').textContent = `${index} de 3`;
+  }
+  async function start() {
+    if (busy) return;
+    busy = true;
+    const button = content.querySelector('button');
+    if (button) button.disabled = true;
+    message('#game-message', 'Preparando circuito…');
+    try {
+      session = await api('/trivia/start', {});
+      answers = []; index = 0;
+      message('#game-message', '');
+      render();
+      focusHeading();
+    } catch (e) {
+      message('#game-message', e.message, true);
+      if (button) button.disabled = false;
+    } finally { busy = false; }
+  }
+  function render() {
+    content.replaceChildren(); setProgress();
+    $('#step').textContent = `RETO ${index + 1} DE 3`;
+    content.append(node('h3', session.questions[index].prompt));
+    const hint = node('p', session.questions[index].hint, 'question-hint');
+    hint.id = 'question-hint';
+    content.append(hint);
+    const options = node('div', undefined, 'options');
+    options.setAttribute('role', 'group');
+    options.setAttribute('aria-label', 'Elige una respuesta');
+    session.questions[index].options.forEach((text, i) => {
+      const button = node('button', text, 'option');
+      button.type = 'button';
+      button.setAttribute('aria-pressed', 'false');
+      button.setAttribute('aria-describedby', 'question-hint');
+      button.onclick = () => choose(i, button, options);
+      options.append(button);
+    });
+    content.append(options);
+  }
+  async function choose(answer, selected, options) {
+    if (busy) return;
+    busy = true;
+    const buttons = [...options.querySelectorAll('button')];
+    for (const button of buttons) {
+      button.disabled = true;
+      button.classList.remove('is-wrong', 'is-correct', 'is-selected');
+      button.setAttribute('aria-pressed', String(button === selected));
+    }
+    // Highlight the tap immediately; correctness still comes from the server.
+    selected.classList.add('is-selected');
+    content.setAttribute('aria-busy', 'true');
+    message('#game-message', '');
+    try {
+      const result = await api(`/trivia/${session.session_id}/answer`, {question_index: index, answer});
+      selected.classList.add(result.correct ? 'is-correct' : 'is-wrong');
+      message('#game-message', result.feedback, !result.correct);
+      if (!result.correct) {
+        for (const button of buttons) button.disabled = false;
+        busy = false;
+        return;
+      }
+      answers[index] = answer;
+      index++; setProgress();
+      // Keep the successful state visible briefly, then move on without an extra tap.
+      setTimeout(() => {
+        busy = false;
+        if (index < 3) { render(); focusHeading(); }
+        else finish();
+      }, 450);
+    } catch (e) {
+      message('#game-message', e.message + ' Puedes volver a tocar la respuesta.', true);
+      for (const button of buttons) button.disabled = false;
+      selected.classList.remove('is-selected');
+      busy = false;
+    } finally { content.setAttribute('aria-busy', 'false'); }
+  }
+  async function finish() {
+    if (busy) return;
+    busy = true;
+    content.replaceChildren(node('p', 'Preparando tu Ticket de Circuito…'));
+    try {
+      const result = await api(`/trivia/${session.session_id}/submit`, {answers});
+      if (!result.passed) throw new Error('Revisa las respuestas antes de completar el circuito.');
+      $('#step').textContent = '3 DE 3 · ¡LO LOGRASTE!';
+      message('#game-message', '');
+      content.replaceChildren(circuitTicket(result.token, start));
+      focusHeading();
+    } catch (e) {
+      message('#game-message', e.message, true);
+      const retry = node('button', 'Recuperar mi ticket', 'button');
+      retry.onclick = finish;
+      content.replaceChildren(node('p', 'Tus respuestas siguen aquí. Reintentar recupera el mismo token.'), retry);
+    } finally { busy = false; }
+  }
+  $('#start').onclick = start;
 }
 if(document.body.dataset.page==='registration'){
- $('#donation-form').onsubmit=async event=>{event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;message('#form-message','Registrando entrega…');const body=Object.fromEntries(new FormData(event.target));body.quantity=Number(body.quantity);try{const data=await api('/donations',body);event.target.hidden=true;message('#form-message','¡Entrega registrada! Guarda tu comprobante.');const receipt=$('#receipt');receipt.hidden=false;receipt.replaceChildren(node('h3','Comprobante de entrega'),node('code',data.ticket,'token'));for(const text of [`Participante: ${data.alias}`,`Categoría: ${data.category}`,`${data.quantity} piezas · ${data.weight_kg} kg estimados`,`Fecha: ${new Date(data.created_at).toLocaleString('es-SV')}`])receipt.append(node('p',text));const details=node('details');details.append(node('summary','Ver payload UTF-8 en bytes (representación educativa)'),node('pre','HEX: '+data.payload_hex+'\n\nBIN: '+data.payload_binary));const print=node('button','Guardar / imprimir comprobante','button');print.onclick=()=>window.print();const another=node('a','Registrar otra entrega →','text-link');another.href='/registro';receipt.append(details,print,another);}catch(e){message('#form-message',e.message+' Si hubo una interrupción de red, confirma con el staff antes de repetir la entrega.',true);}finally{button.disabled=false;}};
+ $('#donation-form').onsubmit=async event=>{event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;message('#form-message','Registrando entrega…');const body=Object.fromEntries(new FormData(event.target));body.quantity=Number(body.quantity);try{const data=await api('/donations',body);event.target.hidden=true;message('#form-message','¡Entrega registrada! Guarda tu comprobante.');const receipt=$('#receipt');receipt.hidden=false;receipt.replaceChildren(circuitTicket(data.token),node('h3','Comprobante de entrega'),node('code',data.ticket,'receipt-id'));for(const text of [`Participante: ${data.alias}`,`Categoría: ${data.category}`,`${data.quantity} piezas · ${data.weight_kg} kg estimados`,`Fecha: ${new Date(data.created_at).toLocaleString('es-SV')}`])receipt.append(node('p',text));const details=node('details');details.append(node('summary','Ver payload UTF-8 en bytes (representación educativa)'),node('pre','HEX: '+data.payload_hex+'\n\nBIN: '+data.payload_binary));const print=node('button','Guardar / imprimir comprobante','button');print.onclick=()=>window.print();const another=node('a','Registrar otra entrega →','text-link');another.href='/registro';receipt.append(details,print,another);}catch(e){message('#form-message',e.message+' Si hubo una interrupción de red, confirma con el staff antes de repetir la entrega.',true);}finally{button.disabled=false;}};
 }
 if(document.body.dataset.page==='dashboard'){
  async function refresh(){try{const data=await api('/metrics');$('#items').textContent=data.items;$('#registrations').textContent=data.registrations;$('#weight-total').textContent=data.weight_kg.toLocaleString('es-SV',{maximumFractionDigits:3});$('#repaired').textContent=data.repaired;$('#data-flow').replaceChildren(...data.recent.map(row=>{const el=node('div',undefined,'flow-row');el.append(node('strong',row.hex),node('code',row.binary));return el;}));if(!data.recent.length)$('#data-flow').append(node('p','La primera entrega inicia el flujo.'));message('#connection','● En vivo · actualizado '+new Date().toLocaleTimeString('es-SV'));}catch(e){message('#connection','Sin conexión · se conservan los últimos datos. Reintentando…',true);}finally{setTimeout(refresh,5000);}}
  refresh();$('#fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{message('#connection','El navegador no permite activar pantalla completa.',true);}};
 }
-if(document.body.dataset.page==='staff'){
- let verifiedToken=null;
- $('#token').oninput=()=>{verifiedToken=null;$('#redeem').hidden=true;$('#token-result').textContent='';};
- $('#token-form').onsubmit=async event=>{event.preventDefault();verifiedToken=null;$('#redeem').hidden=true;try{const data=await api('/staff/token?token='+encodeURIComponent($('#token').value));message('#token-result',data.canjeado?'Este token ya fue canjeado.':'Token válido. Confirma el canje al entregar la recompensa.',data.canjeado);if(!data.canjeado){verifiedToken=data.token;$('#redeem').hidden=false;}}catch(e){message('#token-result',e.message,true);}};
- $('#redeem').onclick=async()=>{if(!verifiedToken)return;$('#redeem').disabled=true;try{await api('/staff/redeem',{token:verifiedToken});message('#token-result','CANJEADO ✓ Entrega el Bus de Datos Saludable.');verifiedToken=null;$('#redeem').hidden=true;}catch(e){message('#token-result',e.message,true);}finally{$('#redeem').disabled=false;}};
+if (document.body.dataset.page === 'staff') {
+  let verifiedToken = null, redeeming = false, refreshing = false;
+  const pending = new Set();
+  $('#token').oninput = () => {
+    verifiedToken = null; $('#redeem').hidden = true; $('#token-result').textContent = '';
+  };
+  $('#token-form').onsubmit = async event => {
+    event.preventDefault(); verifiedToken = null; $('#redeem').hidden = true;
+    const entered = $('#token').value;
+    try {
+      const data = await api('/staff/token?token=' + encodeURIComponent(entered));
+      if ($('#token').value !== entered) return;
+      message('#token-result', data.canjeado ? 'Este token ya fue canjeado.' : 'Token válido. Confirma el canje al entregar la recompensa.', data.canjeado);
+      if (!data.canjeado) { verifiedToken = data.token; $('#redeem').hidden = false; }
+    } catch (e) { message('#token-result', e.message, true); }
+  };
+  async function markRedeemed(token, button, status) {
+    if (pending.has(token)) return;
+    pending.add(token); button.disabled = true;
+    try {
+      await api('/staff/redeem', {token});
+      message(status, token + ' · CANJEADO ✓ Entrega el Bus de Datos Saludable.');
+      if (verifiedToken === token) { verifiedToken = null; $('#redeem').hidden = true; }
+      await refreshTokens();
+    } catch (e) {
+      message(status, token + ' · ' + e.message, true);
+      await refreshTokens();
+    } finally { pending.delete(token); button.disabled = false; }
+  }
+  $('#redeem').onclick = async () => {
+    if (!verifiedToken || redeeming) return;
+    redeeming = true;
+    try { await markRedeemed(verifiedToken, $('#redeem'), '#token-result'); }
+    finally { redeeming = false; }
+  };
+  async function refreshTokens() {
+    if (refreshing) return;
+    refreshing = true;
+    try {
+      const data = await api('/staff/tokens');
+      const active = document.activeElement;
+      const focusedToken = active && active.dataset.redeemToken;
+      const rows = data.tokens.map(row => {
+        const item = node('li', undefined, 'staff-token-row');
+        const info = node('div');
+        info.append(node('code', row.token, 'staff-token-code'),
+          node('small', (row.source === 'donation' ? 'Entrega RAEE' : 'Trivia') + ' · ' + new Date(row.created_at).toLocaleTimeString('es-SV')));
+        item.append(info);
+        if (row.canjeado) item.append(node('span', 'CANJEADO ✓', 'redeemed-badge'));
+        else {
+          const button = node('button', 'Marcar Canjeado', 'button');
+          button.dataset.redeemToken = row.token;
+          button.setAttribute('aria-label', 'Marcar Canjeado ' + row.token);
+          button.disabled = pending.has(row.token);
+          button.onclick = () => markRedeemed(row.token, button, '#staff-action');
+          item.append(button);
+        }
+        return item;
+      });
+      $('#recent-tokens').replaceChildren(...rows);
+      if (!rows.length) $('#recent-tokens').append(node('li', 'Los nuevos tokens aparecerán aquí.'));
+      if (focusedToken) {
+        const replacement = [...$('#recent-tokens').querySelectorAll('button')].find(button => button.dataset.redeemToken === focusedToken);
+        if (replacement) replacement.focus({preventScroll: true});
+      }
+      message('#staff-connection', '● En vivo · actualizado ' + new Date().toLocaleTimeString('es-SV'));
+    } catch (e) { message('#staff-connection', 'Sin actualizar: ' + e.message + '. Reintentando…', true); }
+    finally { refreshing = false; }
+  }
+  async function poll() { await refreshTokens(); setTimeout(poll, 3000); }
+  poll();
 }

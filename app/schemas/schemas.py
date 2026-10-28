@@ -14,3 +14,8 @@ class Answers(BaseModel):
 
 class Redemption(BaseModel):
     token: str = Field(min_length=6, max_length=40)
+
+class QuestionAnswer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    question_index: StrictInt = Field(ge=0, le=2)
+    answer: StrictInt = Field(ge=0, le=2)
