@@ -19,6 +19,27 @@ def client():
 
 AUTH = ('staff', 'test-only-password-123')
 
+def test_shared_dashboard_and_qr_destinations(client):
+    from unittest.mock import patch
+    from app.core.config import settings
+    from app.core.partners import ECO_TECH_URL, ECO_TECH_STATS_URL
+    import app.routes.api as routes
+
+    response = client.get('/dashboard')
+    assert response.status_code == 200
+    for value in ['id="items"', 'id="registrations"', 'id="weight-total"',
+                  'id="repaired"', 'id="data-flow"', '/api/qr.svg',
+                  '/api/eco-tech-qr.svg', f'src="{ECO_TECH_STATS_URL}"']:
+        assert value in response.text
+    with patch.object(routes.qrcode, 'make', wraps=routes.qrcode.make) as make:
+        for path, target in [('/api/qr.svg', settings.public_url),
+                             ('/api/eco-tech-qr.svg', ECO_TECH_URL)]:
+            qr = client.get(path)
+            assert qr.status_code == 200
+            assert qr.headers['content-type'].startswith('image/svg+xml')
+            assert '<svg' in qr.text
+            assert make.call_args.args[0] == target
+
 def complete(client, success=True):
     start = client.post('/api/trivia/start', json={}).json()
     assert all('correct' not in q for q in start['questions'])

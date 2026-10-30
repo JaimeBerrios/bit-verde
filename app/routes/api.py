@@ -11,6 +11,7 @@ from sqlalchemy import select, update, func, union_all, literal
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.partners import ECO_TECH_URL
 from app.core.security import staff, same_origin
 from app.models.models import Donation, DonationRequest, TriviaSession, Reward, now
 from app.schemas.schemas import Answers, DonationInput, Redemption, QuestionAnswer
@@ -130,7 +131,14 @@ def metrics(db: Session = Depends(get_db)):
 
 @router.get("/qr.svg")
 def qr():
-    picture = qrcode.make(settings.public_url, image_factory=qrcode.image.svg.SvgPathImage, border=4)
+    return qr_response(settings.public_url)
+
+@router.get("/eco-tech-qr.svg")
+def eco_tech_qr():
+    return qr_response(ECO_TECH_URL)
+
+def qr_response(url):
+    picture = qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage, border=4)
     output = BytesIO()
     picture.save(output)
     return Response(output.getvalue(), media_type="image/svg+xml")
