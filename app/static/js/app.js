@@ -210,7 +210,50 @@ event.target.hidden=true;message('#form-message','¡Entrega registrada! Guarda t
 }finally{button.disabled=false;}};
 }
 if(document.body.dataset.page==='dashboard'){
- async function refresh(){try{const data=await api('/metrics');$('#items').textContent=data.items;$('#registrations').textContent=data.registrations;$('#weight-total').textContent=data.weight_kg.toLocaleString('es-SV',{maximumFractionDigits:3});$('#repaired').textContent=data.repaired;$('#data-flow').replaceChildren(...data.recent.map(row=>{const el=node('div',undefined,'flow-row');el.append(node('strong',row.hex),node('code',row.binary));return el;}));if(!data.recent.length)$('#data-flow').append(node('p','La primera entrega inicia el flujo.'));message('#connection','● En vivo · actualizado '+new Date().toLocaleTimeString('es-SV'));}catch(e){message('#connection','Sin conexión · se conservan los últimos datos. Reintentando…',true);}finally{setTimeout(refresh,5000);}}
+ let flowPage = 0, categoryPage = 0;
+ const flowSize = () => matchMedia('(min-width:901px) and (max-height:650px)').matches ? 1 : 2;
+ async function refresh() {
+   try {
+     const data = await api('/metrics');
+     $('#items').textContent = data.items;
+     $('#registrations').textContent = data.registrations;
+     $('#weight-total').textContent = data.weight_kg.toLocaleString('es-SV', {maximumFractionDigits:3});
+     $('#repaired').textContent = data.repaired;
+     const pageSize = flowSize();
+     const start = (flowPage++ % Math.max(1, Math.ceil(data.recent.length / pageSize))) * pageSize;
+     $('#data-flow').replaceChildren(...data.recent.slice(start, start + pageSize).map(row => {
+       const el = node('div', undefined, 'flow-row');
+       el.append(node('strong', row.hex), node('code', row.binary));
+       return el;
+     }));
+     if (!data.recent.length) $('#data-flow').append(node('p', 'La primera entrega inicia el flujo.'));
+     message('#connection', '● En vivo · actualizado ' + new Date().toLocaleTimeString('es-SV'));
+   } catch {
+     message('#connection', 'Sin conexión · se conservan los últimos datos. Reintentando…', true);
+   } finally { setTimeout(refresh, 5000); }
+ }
+ async function refreshEcoTech() {
+   try {
+     const data = await api('/eco-tech/metrics');
+     $('#eco-tech-metrics').replaceChildren(...data.metrics.map(metric => {
+       const card = node('article');
+       card.append(node('span', metric.label), node('strong', metric.value));
+       return card;
+     }));
+     const pageSize = matchMedia('(min-width:901px) and (max-height:650px)').matches ? 1 : 3;
+     const start = (categoryPage++ % Math.max(1, Math.ceil(data.categories.length / pageSize))) * pageSize;
+     const rows = data.categories.slice(start, start + pageSize).map(text => node('p', text));
+     if (data.categories.length > pageSize) rows.push(node('small', `Categorías ${start + 1}–${Math.min(start + pageSize, data.categories.length)} de ${data.categories.length} · rotación automática`));
+     $('#eco-tech-categories').replaceChildren(...rows);
+     const updated = new Date(data.updated_at).toLocaleTimeString('es-SV');
+     $('#eco-tech-status').textContent = data.stale
+       ? 'Sin conexión · últimos datos de ' + updated + '. Reintentando…'
+       : '● En vivo · actualizado ' + updated;
+   } catch {
+     $('#eco-tech-status').textContent = 'Eco-Tech sin conexión · reintentando. Puedes abrir sus estadísticas ↗';
+   } finally { setTimeout(refreshEcoTech, 30000); }
+ }
+ refreshEcoTech();
  refresh();$('#fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{message('#connection','El navegador no permite activar pantalla completa.',true);}};
 }
 if (document.body.dataset.page === 'staff') {

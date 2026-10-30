@@ -2,32 +2,59 @@
 {% block page %}dashboard{% endblock %}
 {% block content %}
 <section class="dashboard-heading">
-  <div><p class="eyebrow"><span class="status-dot"></span> EL CAMBIO ESTÁ PASANDO</p><h1>Conectados por<br>un futuro <em>más verde.</em></h1></div>
+  <div class="heading-content">
+    <p class="eyebrow"><span class="status-dot"></span> EL CAMBIO ESTÁ PASANDO</p>
+    <h1>Conectados por un futuro <em>más verde.</em></h1>
+  </div>
   <button class="button light" id="fullscreen">Pantalla completa ⛶</button>
 </section>
 <div class="dashboard-panels">
   <section class="dashboard-panel" aria-labelledby="bitverde-title">
     <div class="card-heading"><h2 id="bitverde-title">BitVerde</h2><span class="tag">NUESTRO STAND</span></div>
     <p id="connection" role="status">Conectando con el stand…</p>
-    <section class="metrics" aria-label="Estadísticas de BitVerde">
-      <article><span>PIEZAS RAEE RECIBIDAS</span><strong id="items">—</strong><small><span id="registrations">—</span> entregas registradas</small></article>
-      <article><span>PESO ACUMULADO</span><strong><span id="weight-total">—</span><small> kg</small></strong><small>Un paso hacia una gestión responsable</small></article>
-      <article><span>CIRCUITOS REPARADOS</span><strong id="repaired">—</strong><small>Retos completados con 3 aciertos</small></article>
-    </section>
+    <div class="panel-data">
+      <section class="metrics" aria-label="Estadísticas de BitVerde">
+        <article><span>PIEZAS RAEE RECIBIDAS</span><strong id="items">—</strong><small><span id="registrations">—</span> entregas registradas</small></article>
+        <article><span>PESO ACUMULADO</span><strong><span id="weight-total">—</span><small> kg</small></strong><small>Un paso hacia una gestión responsable</small></article>
+        <article><span>CIRCUITOS REPARADOS</span><strong id="repaired">—</strong><small>Retos completados con 3 aciertos</small></article>
+      </section>
+      <article class="card dashboard-flow">
+        <div class="card-heading"><h2>El flujo del cambio</h2><span class="tag">DATOS EN VIVO</span></div>
+        <p class="muted">Últimas entregas, representadas en hexadecimal y binario.</p>
+        <div id="data-flow" aria-live="polite"></div>
+      </article>
+    </div>
     <aside class="qr-card">
-      <img src="/api/qr.svg" width="200" height="200" alt="Código QR para acceder a BitVerde">
-      <div><p class="eyebrow">TU TURNO DE CONECTAR</p><h2>Escanea y juega<br>en BitVerde.</h2><p class="muted">Retos cotidianos con pistas. Objetivo: menos de {{ trivia_goal_seconds }} segundos.</p><a href="{{ public_url }}">{{ public_url }}</a></div>
+      <img src="/api/qr.svg" width="160" height="160" alt="Código QR para acceder a BitVerde">
+      <div>
+        <p class="eyebrow">TU TURNO DE CONECTAR</p>
+        <h2>Escanea y juega<br>en BitVerde.</h2>
+        <p class="muted">Retos cotidianos con pistas. Objetivo: menos de {{ trivia_goal_seconds }} segundos.</p>
+        <a href="{{ public_url }}">{{ public_url }}</a>
+      </div>
     </aside>
-    <article class="card dashboard-flow"><div class="card-heading"><h2>El flujo del cambio</h2><span class="tag">DATOS EN VIVO</span></div><p class="muted">Últimas entregas, representadas en hexadecimal y binario.</p><div id="data-flow" aria-live="polite"></div></article>
   </section>
   <section class="dashboard-panel eco-tech-panel" aria-labelledby="eco-tech-title">
     <div class="card-heading"><h2 id="eco-tech-title" class="eco-tech-logo">ECO<span>TECH</span></h2><a class="text-link" href="{{ eco_tech_stats_url }}" target="_blank" rel="noopener noreferrer">Abrir estadísticas ↗</a></div>
-    <p class="muted">Estadísticas del proyecto de nuestro compañero.</p>
-    <iframe class="eco-tech-frame" src="{{ eco_tech_stats_url }}" title="Estadísticas de Eco-Tech" referrerpolicy="no-referrer"></iframe>
-    <p class="muted">Si las estadísticas no aparecen, <a href="{{ eco_tech_stats_url }}" target="_blank" rel="noopener noreferrer">ábrelas en otra pestaña</a>.</p>
+    <p class="muted" id="eco-tech-status" role="status">Conectando con Eco-Tech…</p>
+    <div class="panel-data">
+      <section class="eco-tech-metrics" id="eco-tech-metrics" aria-label="Estadísticas de Eco-Tech">
+        <article><span>Dispositivos recibidos</span><strong>—</strong></article>
+        <article><span>Participantes registrados</span><strong>—</strong></article>
+      </section>
+      <article class="eco-tech-categories">
+        <div class="card-heading"><h2>Residuos por categoría</h2><span class="eco-data-tag">IMPACTO AMBIENTAL</span></div>
+        <div id="eco-tech-categories"><p>Esperando datos de Eco-Tech…</p></div>
+      </article>
+    </div>
     <aside class="qr-card eco-tech-qr">
-      <img src="/api/eco-tech-qr.svg" width="200" height="200" alt="Código QR para acceder a la página principal de Eco-Tech">
-      <div><p class="eyebrow">TECNOLOGÍA PARA UN FUTURO SOSTENIBLE</p><h2>Escanea y visita<br><span>ECO TECH.</span></h2><p class="muted">Conoce el proyecto desde tu celular.</p><a href="{{ eco_tech_url }}" target="_blank" rel="noopener noreferrer">{{ eco_tech_url }}</a></div>
+      <img src="/api/eco-tech-qr.svg" width="160" height="160" alt="Código QR para acceder a la página principal de Eco-Tech">
+      <div>
+        <p class="eyebrow">TECNOLOGÍA PARA UN FUTURO SOSTENIBLE</p>
+        <h2>Escanea y visita<br><span>ECO TECH.</span></h2>
+        <p class="muted">Conoce el proyecto desde tu celular.</p>
+        <a href="{{ eco_tech_url }}" target="_blank" rel="noopener noreferrer">{{ eco_tech_url }}</a>
+      </div>
     </aside>
   </section>
 </div>

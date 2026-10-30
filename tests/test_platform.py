@@ -29,7 +29,7 @@ def test_shared_dashboard_and_qr_destinations(client):
     assert response.status_code == 200
     for value in ['id="items"', 'id="registrations"', 'id="weight-total"',
                   'id="repaired"', 'id="data-flow"', '/api/qr.svg',
-                  '/api/eco-tech-qr.svg', f'src="{ECO_TECH_STATS_URL}"']:
+                  '/api/eco-tech-qr.svg', f'href="{ECO_TECH_STATS_URL}"']:
         assert value in response.text
     with patch.object(routes.qrcode, 'make', wraps=routes.qrcode.make) as make:
         for path, target in [('/api/qr.svg', settings.public_url),
@@ -320,3 +320,17 @@ def test_shuffled_answers_keep_correct_meaning():
     assert bank[0]['options'][bank[0]['correct']] == '1 - Enciende'
     assert bank[1]['options'][bank[1]['correct']] == '1 - Sí recibe carga'
     assert bank[2]['options'][bank[2]['correct']].startswith('Porque contienen')
+
+
+def test_eco_tech_metrics_route_reports_unavailability(client, monkeypatch):
+    import app.routes.api as routes
+    def unavailable():
+        raise ValueError('No se pudo consultar Eco-Tech.')
+    monkeypatch.setattr(routes, 'eco_tech_statistics', unavailable)
+    response = client.get('/api/eco-tech/metrics')
+    assert response.status_code == 503
+    assert 'Eco-Tech' in response.json()['detail']
+    snapshot = {'metrics': [{'value': '12', 'label': 'Dispositivos recibidos'}],
+                'categories': ['Cables 12'], 'updated_at': '2026-10-30T12:00:00Z', 'stale': True}
+    monkeypatch.setattr(routes, 'eco_tech_statistics', lambda: snapshot)
+    assert client.get('/api/eco-tech/metrics').json() == snapshot

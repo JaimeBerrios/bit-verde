@@ -19,7 +19,7 @@ Abre `http://localhost:8000`. SQLite crea `bitverde.db` al iniciar. Si pruebas e
 | --- | --- |
 | `/` | Trivia móvil de tres preguntas |
 | `/registro` | Registro y comprobante imprimible |
-| `/dashboard` | Métricas cada 5 segundos y QR |
+| `/dashboard` | Dos stands alineados, métricas y un QR para cada proyecto |
 | `/staff` | Consulta y canje, protegido por HTTP Basic |
 | `/docs` | API OpenAPI interactiva |
 | `/health` | Comprobación de aplicación y base de datos |
@@ -45,6 +45,10 @@ Categorías oficiales (compartidas entre formulario, validación API y restricci
 El registro recibe alias, categoría, cantidad entera y peso estimado con hasta tres decimales; 0 kg significa aún no pesado. Guarda un identificador aleatorio y el JSON canónico codificado en UTF-8, representado en hexadecimal y binario (educativo, no una lectura física del circuito). El comprobante se muestra inmediatamente y permite imprimir o guardar como PDF desde el navegador. No hay una consulta pública posterior del comprobante con datos personales. El formulario guarda el intento pendiente en sessionStorage y envía una cabecera `Idempotency-Key`. Ante una interrupción de red, reintentar o recargar esa pestaña recupera el mismo comprobante y premio. Mientras está pendiente, sus campos quedan bloqueados para conservar los datos originales. Una nueva entrega desde el enlace del comprobante recibe otra clave. La API conserva compatibilidad con clientes sin cabecera; esos clientes no tienen esta protección. Si el navegador bloquea el almacenamiento o no dispone de generación criptográfica de claves, no se envía el registro. Se usa `crypto.randomUUID()` cuando está disponible y `crypto.getRandomValues()` como alternativa para acceso local por HTTP.
 
 El dashboard publica solo agregados e IDs de donaciones; nunca alias ni tokens de premio. No convierte kilos recogidos en estimaciones de CO₂ sin una metodología validada.
+
+El panel Eco-Tech conserva su identidad oscura y verde y consulta sus estadísticas públicas desde el servidor cada 30 segundos (`GET /api/eco-tech/metrics`). Extrae las cifras y categorías del HTML remoto sin ejecutar sus scripts. Si falla la conexión o cambia la estructura del sitio, muestra el aviso y conserva la última consulta válida; no inventa valores cero. El enlace «Abrir estadísticas» lleva a la fuente original.
+
+En escritorio (más de 900 px), los encabezados, datos y QR comparten filas y aprovechan el alto de la pantalla. Las últimas entregas y las categorías rotan por grupos para evitar scroll interno; en pantallas bajas los grupos son menores. En móvil se conserva el desplazamiento vertical natural. El QR de Eco-Tech abre su página principal y el de BitVerde mantiene `PUBLIC_URL`.
 
 HTTP Basic usa comparación de credenciales en tiempo constante. Sin contraseña configurada, staff permanece cerrado. Usa HTTPS en producción; no guardes contraseñas en el frontend. Los POST rechazan orígenes distintos cuando el navegador envía `Origin`. El despliegue de un evento público de gran tráfico requiere añadir límites de solicitudes en infraestructura; no se incluye control de identidad de participantes ni protección distribuida contra abuso.
 
