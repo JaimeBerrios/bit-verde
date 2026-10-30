@@ -161,30 +161,26 @@ test('Entrega: reintento tras perder respuesta y recarga conserva clave y datos'
   assert.equal(restored.requests[0].headers['Idempotency-Key'], pending.key);
 });
 
-test('Dashboard: rota entregas y categorías sin perder las últimas cifras al fallar Eco-Tech', async () => {
-  let offline = false;
+test('Dashboard: rota entregas y recarga la página oficial de Eco-Tech', async () => {
+  const officialUrl = 'https://eco-tech-w2cv.onrender.com/estadisticas';
   const ids = ['items','registrations','weight-total','repaired','data-flow','connection',
-    'eco-tech-metrics','eco-tech-categories','eco-tech-status','fullscreen'];
+    'eco-tech-frame','fullscreen'];
   const ui = setup('dashboard', ids.map(id => [id, 'div']), url => {
-    if (url === '/api/metrics') return {items:12, registrations:8, weight_kg:1.5, repaired:3,
+    assert.equal(url, '/api/metrics');
+    return {items:12, registrations:8, weight_kg:1.5, repaired:3,
       recent:Array.from({length:6}, (_,i) => ({hex:'0x'+i, binary:'01'.repeat(32)}))};
-    if (offline) throw new Error('Sin conexión');
-    return {metrics:[{value:'12',label:'Dispositivos recibidos'},{value:'8',label:'Participantes registrados'}],
-      categories:Array.from({length:7},(_,i) => 'Categoría '+i), updated_at:'2026-10-30T12:00:00Z',stale:false};
-  }, new Map(), ({context}) => {context.matchMedia = () => ({matches:false});});
+  }, new Map(), ({context, $}) => {
+    context.matchMedia = () => ({matches:false});
+    $('#eco-tech-frame').src = officialUrl;
+  });
   await flush();
   assert.equal(ui.$('#data-flow').children.length, 2);
   assert(ui.$('#data-flow').textContent.includes('0x0'));
-  assert(ui.$('#eco-tech-metrics').textContent.includes('12'));
-  assert(ui.$('#eco-tech-categories').textContent.includes('Categoría 0'));
-  assert(!ui.$('#eco-tech-categories').textContent.includes('Categoría 3'));
   await ui.timers.find(t => t.ms === 5000).callback();
   assert(ui.$('#data-flow').textContent.includes('0x2'));
   assert(!ui.$('#data-flow').textContent.includes('0x0'));
-  await ui.timers.find(t => t.ms === 30000).callback();
-  assert(ui.$('#eco-tech-categories').textContent.includes('Categoría 3'));
-  offline = true;
-  await ui.timers.find(t => t.ms === 30000).callback();
-  assert(ui.$('#eco-tech-status').textContent.includes('sin conexión'));
-  assert(ui.$('#eco-tech-metrics').textContent.includes('12'));
+  ui.$('#eco-tech-frame').src = 'https://eco-tech-w2cv.onrender.com/';
+  ui.timers.find(t => t.ms === 30000).callback();
+  assert.equal(ui.$('#eco-tech-frame').src, officialUrl);
+  assert(ui.timers.filter(t => t.ms === 30000).length >= 2);
 });

@@ -46,9 +46,9 @@ El registro recibe alias, categoría, cantidad entera y peso estimado con hasta 
 
 El dashboard publica solo agregados e IDs de donaciones; nunca alias ni tokens de premio. No convierte kilos recogidos en estimaciones de CO₂ sin una metodología validada.
 
-El panel Eco-Tech conserva su identidad oscura y verde y consulta sus estadísticas públicas desde el servidor cada 30 segundos (`GET /api/eco-tech/metrics`). Extrae las cifras y categorías del HTML remoto sin ejecutar sus scripts. Si falla la conexión o cambia la estructura del sitio, muestra el aviso y conserva la última consulta válida; no inventa valores cero. El enlace «Abrir estadísticas» lleva a la fuente original.
+El panel Eco-Tech incrusta directamente `https://eco-tech-w2cv.onrender.com/estadisticas` mediante un iframe. Conserva el contenido y los estilos de la página oficial y la vuelve a cargar cada 30 segundos para consultar resultados nuevos. El enlace «Abrir estadísticas» permite abrir la fuente en otra pestaña.
 
-En escritorio (más de 900 px), los encabezados, datos y QR comparten filas y aprovechan el alto de la pantalla. Las últimas entregas y las categorías rotan por grupos para evitar scroll interno; en pantallas bajas los grupos son menores. En móvil se conserva el desplazamiento vertical natural. El QR de Eco-Tech abre su página principal y el de BitVerde mantiene `PUBLIC_URL`.
+En escritorio (más de 900 px), los encabezados, las zonas de datos y los QR comparten filas y aprovechan el alto de la pantalla. Las últimas entregas de BitVerde rotan por grupos para evitar scroll interno. La página oficial de Eco-Tech conserva su propio desplazamiento cuando su contenido supera el área disponible; al ser de otro dominio, BitVerde no modifica su diseño interno. En móvil se conserva el desplazamiento vertical natural. El QR de Eco-Tech abre su página principal y el de BitVerde mantiene `PUBLIC_URL`.
 
 HTTP Basic usa comparación de credenciales en tiempo constante. Sin contraseña configurada, staff permanece cerrado. Usa HTTPS en producción; no guardes contraseñas en el frontend. Los POST rechazan orígenes distintos cuando el navegador envía `Origin`. El despliegue de un evento público de gran tráfico requiere añadir límites de solicitudes en infraestructura; no se incluye control de identidad de participantes ni protección distribuida contra abuso.
 

@@ -36,16 +36,9 @@
   </section>
   <section class="dashboard-panel eco-tech-panel" aria-labelledby="eco-tech-title">
     <div class="card-heading"><h2 id="eco-tech-title" class="eco-tech-logo">ECO<span>TECH</span></h2><a class="text-link" href="{{ eco_tech_stats_url }}" target="_blank" rel="noopener noreferrer">Abrir estadísticas ↗</a></div>
-    <p class="muted" id="eco-tech-status" role="status">Conectando con Eco-Tech…</p>
-    <div class="panel-data">
-      <section class="eco-tech-metrics" id="eco-tech-metrics" aria-label="Estadísticas de Eco-Tech">
-        <article><span>Dispositivos recibidos</span><strong>—</strong></article>
-        <article><span>Participantes registrados</span><strong>—</strong></article>
-      </section>
-      <article class="eco-tech-categories">
-        <div class="card-heading"><h2>Residuos por categoría</h2><span class="eco-data-tag">IMPACTO AMBIENTAL</span></div>
-        <div id="eco-tech-categories"><p>Esperando datos de Eco-Tech…</p></div>
-      </article>
+    <p class="muted" id="eco-tech-status">Página oficial · se actualiza cada 30 segundos.</p>
+    <div class="panel-data eco-tech-embed">
+      <iframe id="eco-tech-frame" src="{{ eco_tech_stats_url }}" title="Página oficial de estadísticas de ECO TECH" referrerpolicy="no-referrer"></iframe>
     </div>
     <aside class="qr-card eco-tech-qr">
       <img src="/api/eco-tech-qr.svg" width="160" height="160" alt="Código QR para acceder a la página principal de Eco-Tech">

@@ -16,7 +16,6 @@ from app.core.security import staff, same_origin
 from app.models.models import Donation, DonationRequest, TriviaSession, Reward, now
 from app.schemas.schemas import Answers, DonationInput, Redemption, QuestionAnswer
 from app.services.trivia import questions
-from app.services.eco_tech import statistics as eco_tech_statistics
 
 router = APIRouter(prefix="/api")
 
@@ -137,13 +136,6 @@ def qr():
 @router.get("/eco-tech-qr.svg")
 def eco_tech_qr():
     return qr_response(ECO_TECH_URL)
-
-@router.get("/eco-tech/metrics")
-def eco_tech_metrics():
-    try:
-        return eco_tech_statistics()
-    except ValueError as error:
-        raise HTTPException(503, str(error)) from error
 
 def qr_response(url):
     picture = qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage, border=4)
