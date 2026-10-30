@@ -149,20 +149,23 @@ def test_easy_questions_and_immediate_retry(client):
     assert all('✅' not in option and '✓' not in option for item in q for option in item['options'])
     assert 'laptop' in q[0]['prompt'] and 'AND' in q[0]['hint']
     assert 'celular' in q[1]['prompt'] and 'OR' in q[1]['hint']
-    assert q[0]['options'] == ['1 - Enciende', '0 - Apagado']
-    assert q[1]['options'] == ['1 - Sí recibe carga', '0 - No carga']
+    assert sorted(q[0]['options']) == sorted( ['1 - Enciende', '0 - Apagado'])
+    assert sorted(q[1]['options']) == sorted( ['1 - Sí recibe carga', '0 - No carga'])
+    with SessionLocal() as db:
+        stored = json.loads(db.get(TriviaSession, session).questions)
+    answers = [item['correct'] for item in stored]
     for i in range(3):
-        wrong = client.post(f'/api/trivia/{session}/answer', json={'question_index':i, 'answer':1})
+        wrong = client.post(f'/api/trivia/{session}/answer', json={'question_index':i, 'answer':(answers[i]+1) % len(q[i]['options'])})
         assert wrong.status_code == 200 and not wrong.json()['correct']
         assert 'Prueba otra vez' in wrong.json()['feedback']
-        correct = client.post(f'/api/trivia/{session}/answer', json={'question_index':i, 'answer':0})
+        correct = client.post(f'/api/trivia/{session}/answer', json={'question_index':i, 'answer':answers[i]})
         assert correct.status_code == 200 and correct.json()['correct']
     with SessionLocal() as db:
         assert not db.get(TriviaSession, session).completed
         assert db.scalar(select(Reward.token)) is None
-    failed = client.post(f'/api/trivia/{session}/submit', json={'answers':[1,0,0]}).json()
+    failed = client.post(f'/api/trivia/{session}/submit', json={'answers':[(answers[0]+1)%2, *answers[1:]]}).json()
     assert not failed['passed'] and failed['token'] is None
-    won = client.post(f'/api/trivia/{session}/submit', json={'answers':[0,0,0]}).json()
+    won = client.post(f'/api/trivia/{session}/submit', json={'answers':answers}).json()
     assert won['passed'] and won['score'] == 3
     assert client.get('/api/metrics').json()['repaired'] == 1
 
@@ -183,8 +186,10 @@ def test_answer_validation_and_expiration(client):
 
 def test_concurrent_submit_issues_one_reward(client):
     session = client.post('/api/trivia/start',json={}).json()['session_id']
+    with SessionLocal() as db:
+        answers = [q['correct'] for q in json.loads(db.get(TriviaSession, session).questions)]
     def finish(_):
-        response = client.post(f'/api/trivia/{session}/submit', json={'answers':[0,0,0]})
+        response = client.post(f'/api/trivia/{session}/submit', json={'answers':answers})
         assert response.status_code == 200
         return response.json()['token']
     with ThreadPoolExecutor(max_workers=2) as executor:
@@ -260,5 +265,37 @@ def test_new_ticket_and_staff_ui_templates(client):
     assert 'Últimos 10 tokens' in staff_page and 'recent-tokens' in staff_page
     script = client.get('/static/js/app.js').text
     assert 'Copiar Token' in script and 'Jugar de nuevo' in script
-    assert '¡Circuito Optimizado!' in script
-    assert 'Pasa por tu Bus de Datos Saludable 🍓🍇' in script
+    assert '¡Reto completado!' in script
+    assert 'Muestra este token al staff para recibir tu bocadillo.' in script
+
+
+def test_donation_idempotency_concurrent_retry_and_conflict(client):
+    body = {'alias':'Visitante', 'category':'Cables', 'quantity':2, 'weight_kg':'0.250'}
+    headers = {'Idempotency-Key':'delivery-retry-123456'}
+    def send(_):
+        response = client.post('/api/donations', json=body, headers=headers)
+        assert response.status_code == 201
+        return response.json()
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first, second = list(executor.map(send, range(2)))
+    assert first == second
+    assert client.post('/api/donations', json=body, headers=headers).json() == first
+    assert client.post('/api/donations', json=body | {'quantity':3}, headers=headers).status_code == 409
+    assert client.get('/api/metrics').json()['items'] == 2
+    with SessionLocal() as db:
+        assert len(db.scalars(select(Reward)).all()) == 1
+    client.post('/api/staff/redeem', json={'token':first['token']}, auth=AUTH)
+    assert client.post('/api/donations', json=body, headers=headers).json()['canjeado']
+
+
+def test_shuffled_answers_keep_correct_meaning():
+    from app.services.trivia import questions
+    from unittest.mock import patch
+    def reverse(order):
+        order.reverse()
+    with patch('app.services.trivia.SystemRandom.shuffle', side_effect=reverse):
+        bank = questions()
+    assert [q['correct'] for q in bank] == [1, 1, 2]
+    assert bank[0]['options'][bank[0]['correct']] == '1 - Enciende'
+    assert bank[1]['options'][bank[1]['correct']] == '1 - Sí recibe carga'
+    assert bank[2]['options'][bank[2]['correct']].startswith('Porque contienen')

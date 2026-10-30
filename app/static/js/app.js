@@ -1,9 +1,17 @@
+const saved = {
+  get(key, session = false) { try { return JSON.parse((session ? sessionStorage : localStorage).getItem(key)); } catch { return null; } },
+  set(key, value, session = false) { try { (session ? sessionStorage : localStorage).setItem(key, JSON.stringify(value)); return true; } catch { return false; } },
+  remove(key, session = false) { try { (session ? sessionStorage : localStorage).removeItem(key); } catch {} },
+};
 const $ = (s) => document.querySelector(s);
 const node = (tag, text, className) => {const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;return n;};
-async function api(path, body) {
-  const response=await fetch('/api'+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(15000)});
+async function api(path, body, extraHeaders = {}) {
+  const response=await fetch('/api'+path,{method:body?'POST':'GET',headers:{...(body?{'Content-Type':'application/json'}:{}),...extraHeaders},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(15000)});
   const data=await response.json();
-  if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'Revisa los campos e inténtalo de nuevo.');
+  if(!response.ok) {
+    const error = new Error(typeof data.detail==='string'?data.detail:'Revisa los campos e inténtalo de nuevo.');
+    error.status = response.status; throw error;
+  }
   return data;
 }
 function message(selector,text,error=false){const el=$(selector);el.textContent=text;el.className=error?'error':'success';}
@@ -11,8 +19,8 @@ function circuitTicket(token, restart) {
   const ticket = node('section', undefined, 'circuit-ticket');
   ticket.setAttribute('aria-label', 'Ticket de Circuito');
   ticket.append(node('span', 'TICKET DE CIRCUITO', 'eyebrow'),
-    node('h3', '¡Circuito Optimizado!'),
-    node('p', 'Pasa por tu Bus de Datos Saludable 🍓🍇'),
+    node('h3', '¡Reto completado!'),
+    node('p', 'Muestra este token al staff para recibir tu bocadillo.'),
     node('code', token, 'token reward-token'));
   const status = node('p');
   status.setAttribute('role', 'status');
@@ -145,7 +153,9 @@ if (document.body.dataset.page === 'game') {
       if (!result.passed) throw new Error('Revisa las respuestas antes de completar el circuito.');
       $('#step').textContent = '3 DE 3 · ¡LO LOGRASTE!';
       message('#game-message', '');
+      const stored = saved.set('bitverde-ticket', result.token);
       content.replaceChildren(circuitTicket(result.token, start));
+      if (!stored) message('#game-message', 'Guarda una captura del ticket: este navegador no permite conservarlo.');
       focusHeading();
     } catch (e) {
       message('#game-message', e.message, true);
@@ -155,9 +165,49 @@ if (document.body.dataset.page === 'game') {
     } finally { busy = false; }
   }
   $('#start').onclick = start;
+  const recovered = saved.get('bitverde-ticket');
+  if (typeof recovered === 'string' && /^#BIT-[A-F0-9]{16}$/.test(recovered)) {
+    $('#step').textContent = 'TU ÚLTIMO TICKET';
+    content.replaceChildren(circuitTicket(recovered, start));
+    message('#game-message', 'Ticket recuperado en este navegador. El staff comprobará si ya fue canjeado.');
+  }
 }
 if(document.body.dataset.page==='registration'){
- $('#donation-form').onsubmit=async event=>{event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;message('#form-message','Registrando entrega…');const body=Object.fromEntries(new FormData(event.target));body.quantity=Number(body.quantity);try{const data=await api('/donations',body);event.target.hidden=true;message('#form-message','¡Entrega registrada! Guarda tu comprobante.');const receipt=$('#receipt');receipt.hidden=false;receipt.replaceChildren(circuitTicket(data.token),node('h3','Comprobante de entrega'),node('code',data.ticket,'receipt-id'));for(const text of [`Participante: ${data.alias}`,`Categoría: ${data.category}`,`${data.quantity} piezas · ${data.weight_kg} kg estimados`,`Fecha: ${new Date(data.created_at).toLocaleString('es-SV')}`])receipt.append(node('p',text));const details=node('details');details.append(node('summary','Ver payload UTF-8 en bytes (representación educativa)'),node('pre','HEX: '+data.payload_hex+'\n\nBIN: '+data.payload_binary));const print=node('button','Guardar / imprimir comprobante','button');print.onclick=()=>window.print();const another=node('a','Registrar otra entrega →','text-link');another.href='/registro';receipt.append(details,print,another);}catch(e){message('#form-message',e.message+' Si hubo una interrupción de red, confirma con el staff antes de repetir la entrega.',true);}finally{button.disabled=false;}};
+ const pendingKey = 'bitverde-pending-donation';
+ let pendingDonation = saved.get(pendingKey, true);
+ const form = $('#donation-form');
+ function lockPending() {
+   if (!pendingDonation) return;
+   for (const [key, value] of Object.entries(pendingDonation.body)) {
+     const field = form.elements.namedItem(key); field.value = value;
+     if (field.tagName.toLowerCase() === 'select') field.disabled = true;
+     else field.readOnly = true;
+   }
+ }
+ if (pendingDonation && pendingDonation.body) {
+   lockPending();
+   message('#form-message', 'Hay una entrega pendiente. Reintenta para recuperar el mismo comprobante.');
+ }
+
+ $('#donation-form').onsubmit=async event=>{event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;message('#form-message','Registrando entrega…');const body=Object.fromEntries(new FormData(event.target));body.quantity=Number(body.quantity);try{
+ if (!pendingDonation) {
+   const key = globalThis.crypto?.randomUUID?.() || (globalThis.crypto?.getRandomValues
+     ? Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('') : null);
+   if (!key) throw new Error('Este navegador no permite preparar la entrega. Prueba con un navegador actualizado.');
+   pendingDonation = {key, body};
+   if (!saved.set(pendingKey, pendingDonation, true)) { pendingDonation = null; throw new Error('Habilita el almacenamiento del navegador para registrar la entrega con recuperación segura.'); }
+ }
+ lockPending();
+ const data=await api('/donations',pendingDonation.body, {'Idempotency-Key':pendingDonation.key});
+ saved.set('bitverde-ticket', data.token);
+ saved.remove(pendingKey, true); pendingDonation = null;
+event.target.hidden=true;message('#form-message','¡Entrega registrada! Guarda tu comprobante.');const receipt=$('#receipt');receipt.hidden=false;receipt.replaceChildren(circuitTicket(data.token),node('h3','Comprobante de entrega'),node('code',data.ticket,'receipt-id'));for(const text of [`Participante: ${data.alias}`,`Categoría: ${data.category}`,`${data.quantity} piezas · ${data.weight_kg} kg estimados`,`Fecha: ${new Date(data.created_at).toLocaleString('es-SV')}`])receipt.append(node('p',text));const details=node('details');details.append(node('summary','Ver payload UTF-8 en bytes (representación educativa)'),node('pre','HEX: '+data.payload_hex+'\n\nBIN: '+data.payload_binary));const print=node('button','Guardar / imprimir comprobante','button');print.onclick=()=>window.print();const another=node('a','Registrar otra entrega →','text-link');another.href='/registro';receipt.append(details,print,another);}catch(e){
+ if (e.status === 422 || e.status === 403) {
+   saved.remove(pendingKey, true); pendingDonation = null;
+   for (const field of form.querySelectorAll('input, select')) {field.disabled = false; field.readOnly = false;}
+ }
+ message('#form-message',e.message+(pendingDonation?' Reintenta para recuperar la entrega original sin duplicarla.':''),true);
+}finally{button.disabled=false;}};
 }
 if(document.body.dataset.page==='dashboard'){
  async function refresh(){try{const data=await api('/metrics');$('#items').textContent=data.items;$('#registrations').textContent=data.registrations;$('#weight-total').textContent=data.weight_kg.toLocaleString('es-SV',{maximumFractionDigits:3});$('#repaired').textContent=data.repaired;$('#data-flow').replaceChildren(...data.recent.map(row=>{const el=node('div',undefined,'flow-row');el.append(node('strong',row.hex),node('code',row.binary));return el;}));if(!data.recent.length)$('#data-flow').append(node('p','La primera entrega inicia el flujo.'));message('#connection','● En vivo · actualizado '+new Date().toLocaleTimeString('es-SV'));}catch(e){message('#connection','Sin conexión · se conservan los últimos datos. Reintentando…',true);}finally{setTimeout(refresh,5000);}}
@@ -184,7 +234,7 @@ if (document.body.dataset.page === 'staff') {
     pending.add(token); button.disabled = true;
     try {
       await api('/staff/redeem', {token});
-      message(status, token + ' · CANJEADO ✓ Entrega el Bus de Datos Saludable.');
+      message(status, token + ' · CANJEADO ✓ Entrega el bocadillo.');
       if (verifiedToken === token) { verifiedToken = null; $('#redeem').hidden = true; }
       await refreshTokens();
     } catch (e) {

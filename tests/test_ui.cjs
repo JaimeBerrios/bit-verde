@@ -26,7 +26,7 @@ class Element {
   }
   querySelector(selector) {return this.querySelectorAll(selector)[0] || null;}
 }
-function setup(page, initialIds, responder) {
+function setup(page, initialIds, responder, storage = new Map(), beforeRun = () => {}) {
   const body = new Element('body'); body.dataset.page = page;
   const document = {body, activeElement:null, querySelector: selector => body.querySelector(selector),
     createElement: tag => {const el = new Element(tag); el.owner = document; return el;}};
@@ -36,15 +36,17 @@ function setup(page, initialIds, responder) {
     (parent ? document.querySelector('#' + parent) : body).append(el);
   }
   const timers = [], requests = [], copied = [];
-  const context = vm.createContext({document, console, AbortSignal,
+  const localStorage = {getItem:key => storage.get(key) || null, setItem:(key,value) => storage.set(key,value), removeItem:key => storage.delete(key)};
+  const context = vm.createContext({document, console, AbortSignal, localStorage, sessionStorage:localStorage,
     navigator:{clipboard:{writeText: async text => copied.push(text)}},
     setTimeout: (callback, ms) => {timers.push({callback, ms});},
     fetch: async (url, init) => {
       const data = init.body ? JSON.parse(init.body) : undefined;
-      requests.push({url, data});
+      requests.push({url, data, headers:init.headers});
       return {ok:true, json:async () => responder(url, data)};
     },
   });
+  beforeRun({document, context, $:selector => document.querySelector(selector)});
   vm.runInContext(readFileSync('app/static/js/app.js', 'utf8'), context);
   return {document, context, timers, requests, copied, $: selector => document.querySelector(selector)};
 }
@@ -80,7 +82,7 @@ test('Trivia: error, reintento sin reiniciar, progreso, cupón, copia y nueva ro
     ui.timers.splice(ui.timers.findIndex(timer => timer.ms === 450), 1);
     await flush();
   }
-  assert(ui.$('#game-content').textContent.includes('¡Circuito Optimizado!'));
+  assert(ui.$('#game-content').textContent.includes('¡Reto completado!'));
   const copy = ui.$('#game-content').querySelectorAll('button').find(button => button.textContent === 'Copiar Token');
   await copy.onclick();
   assert.deepEqual(ui.copied, ['#BIT-TEST']);
@@ -118,4 +120,43 @@ test('Staff: lista privada, canje con un clic y actualización de estado', async
   assert(ui.$('#recent-tokens').textContent.includes('CANJEADO ✓'));
   assert.equal(ui.$('#recent-tokens').querySelector('button'), null);
   assert(ui.timers.some(timer => timer.ms === 3000));
+});
+
+
+test('Recupera el ticket tras recargar sin emitir otro premio', () => {
+  const storage = new Map([['bitverde-ticket', JSON.stringify('#BIT-A4F29C315D627E80')]]);
+  const ui = setup('game', [['game-content','div'],['start','button','game-content'],
+    ['step','span'],['game-progress','progress'],['game-message','p']], () => {throw new Error('No debe solicitar otro token');}, storage);
+  assert(ui.$('#game-content').textContent.includes('#BIT-A4F29C315D627E80'));
+  assert(ui.$('#game-content').textContent.includes('bocadillo'));
+  assert.equal(ui.requests.length, 0);
+});
+
+test('Entrega: reintento tras perder respuesta y recarga conserva clave y datos', async () => {
+  const storage = new Map();
+  const ids = [['donation-form','form'],['submit','button','donation-form'],['form-message','p'],['receipt','div']];
+  const body = {alias:'Visitante',category:'Cables',quantity:'2',weight_kg:'0.250'};
+  function prepare(target) {
+    const fields = Object.fromEntries(Object.entries(body).map(([key,value]) => [key,{value,tagName:'input'}]));
+    target.$('#donation-form').elements = {namedItem:key => fields[key]};
+    target.context.crypto = {randomUUID:() => 'delivery-test-123456'};
+    target.context.FormData = class { constructor() {return Object.entries(body);} };
+    return fields;
+  }
+  const ui = setup('registration', ids, () => {throw new Error('Respuesta perdida');}, storage, prepare);
+  const event = {preventDefault(){},target:ui.$('#donation-form')};
+  await event.target.onsubmit(event);
+  const pending = JSON.parse(storage.get('bitverde-pending-donation'));
+  assert.equal(pending.key, 'delivery-test-123456');
+  assert.equal(pending.body.quantity, 2);
+  let fields;
+  const restored = setup('registration',ids, () => ({token:'#BIT-A4F29C315D627E80',ticket:'ID',alias:'Visitante',category:'Cables',quantity:2,weight_kg:'0.250',created_at:'2026-10-29T10:00:00Z'}), storage, target => {fields = prepare(target);});
+  assert.equal(fields.alias.value, 'Visitante');
+  assert.equal(fields.alias.readOnly, true);
+  const retry = {preventDefault(){},target:restored.$('#donation-form')};
+  await retry.target.onsubmit(retry);
+  assert.equal(storage.has('bitverde-pending-donation'), false);
+  assert(restored.$('#receipt').textContent.includes('ID'));
+  assert.equal(restored.requests[0].data.quantity, 2);
+  assert.equal(restored.requests[0].headers['Idempotency-Key'], pending.key);
 });

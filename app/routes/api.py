@@ -1,16 +1,18 @@
 import json
+import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 import qrcode
 import qrcode.image.svg
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Header
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, update, func, union_all, literal
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.security import staff, same_origin
-from app.models.models import Donation, TriviaSession, Reward, now
+from app.models.models import Donation, DonationRequest, TriviaSession, Reward, now
 from app.schemas.schemas import Answers, DonationInput, Redemption, QuestionAnswer
 from app.services.trivia import questions
 
@@ -82,14 +84,42 @@ def submit(session_id: str, body: Answers, db: Session = Depends(get_db)):
     return trivia_result(db.get(TriviaSession, session_id))
 
 @router.post("/donations", status_code=201, dependencies=[Depends(same_origin)])
-def donate(body: DonationInput, db: Session = Depends(get_db)):
+def donate(body: DonationInput, db: Session = Depends(get_db),
+           idempotency_key: str | None = Header(default=None, min_length=16, max_length=64, pattern=r"^[a-zA-Z0-9-]+$")):
+    fingerprint = hashlib.sha256(json.dumps(body.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
+    def previous_result(request):
+        if request.fingerprint != fingerprint:
+            raise HTTPException(409, "Este intento corresponde a otra entrega. Recupera los datos originales antes de reintentar.")
+        donation = db.get(Donation, request.donation_id)
+        reward = db.scalar(select(Reward).where(Reward.source_id == donation.id))
+        return donation_result(donation, reward)
+    if idempotency_key:
+        previous = db.get(DonationRequest, idempotency_key)
+        if previous:
+            return previous_result(previous)
     record_id = secrets.token_hex(8).upper()
     payload = json.dumps({"id": record_id, **body.model_dump(mode="json")}, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     donation = Donation(id=record_id, alias=body.alias, category=body.category.value, quantity=body.quantity, weight_kg=body.weight_kg, payload_hex=payload.hex().upper(), payload_binary=" ".join(f"{b:08b}" for b in payload))
     reward = new_reward("donation", record_id)
     db.add_all([donation, reward])
-    db.commit()
-    return {"ticket": record_id, "token": reward.token, "canjeado": False, **body.model_dump(mode="json"), "created_at": donation.created_at.isoformat(), "payload_hex": donation.payload_hex, "payload_binary": donation.payload_binary}
+    if idempotency_key:
+        db.add(DonationRequest(key=idempotency_key, fingerprint=fingerprint, donation_id=record_id))
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        previous = db.get(DonationRequest, idempotency_key) if idempotency_key else None
+        if previous:
+            return previous_result(previous)
+        raise
+    return donation_result(donation, reward)
+
+
+def donation_result(donation, reward):
+    return {"ticket": donation.id, "token": reward.token, "canjeado": reward.redeemed,
+            "alias": donation.alias, "category": donation.category, "quantity": donation.quantity,
+            "weight_kg": str(donation.weight_kg), "created_at": donation.created_at.replace(tzinfo=timezone.utc).isoformat(),
+            "payload_hex": donation.payload_hex, "payload_binary": donation.payload_binary}
 
 @router.get("/metrics")
 def metrics(db: Session = Depends(get_db)):

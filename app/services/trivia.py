@@ -1,7 +1,8 @@
 """Retos cotidianos de lectura rápida para visitantes sin formación técnica."""
+from random import SystemRandom
 
 def questions():
-    return [
+    bank = [
         {
             "prompt": "Para reparar este circuito y encender tu laptop necesitas conectar la corriente (1) Y presionar el botón de encendido (1). ¿Cuál es la salida del circuito?",
             "options": ["1 - Enciende", "0 - Apagado"],
@@ -19,12 +20,18 @@ def questions():
         {
             "prompt": "¿Por qué NO debemos tirar cables, cargadores o baterías a la basura común?",
             "options": [
-                "[A] Porque contienen metales pesados que contaminan el suelo y agua",
-                "[B] Porque ocupan poco espacio en el vertedero",
-                "[C] Porque se degradan solos en 2 días",
+                "Porque contienen metales pesados que contaminan el suelo y agua",
+                "Porque ocupan poco espacio en el vertedero",
+                "Porque se degradan solos en 2 días",
             ],
             "hint": "Piensa en cómo sus materiales pueden afectar al ambiente.",
             "correct": 0,
             "explanation": "¡Exacto! Entrégalos en un punto de recolección RAEE para su gestión adecuada.",
         },
     ]
+    for question in bank:
+        order = list(range(len(question["options"])))
+        SystemRandom().shuffle(order)
+        question["correct"] = order.index(question["correct"])
+        question["options"] = [question["options"][i] for i in order]
+    return bank

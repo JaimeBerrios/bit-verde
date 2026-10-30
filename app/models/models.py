@@ -43,3 +43,11 @@ class Reward(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now, index=True)
     redeemed: Mapped[bool] = mapped_column(Boolean, default=False)
     redeemed_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class DonationRequest(Base):
+    """Clave de reintento guardada junto con la entrega en una sola transacción."""
+    __tablename__ = "donation_requests"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    donation_id: Mapped[str] = mapped_column(String(32), unique=True)
